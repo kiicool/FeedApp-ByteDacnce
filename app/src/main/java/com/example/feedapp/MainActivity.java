@@ -91,54 +91,63 @@ public class MainActivity extends AppCompatActivity {
     private List<FeedItem> mockData(int start) {
         List<FeedItem> list = new ArrayList<>();
 
+        // 本地图片
         int[] localImages = new int[]{
                 R.drawable.test1,
                 R.drawable.test2,
                 R.drawable.test3
         };
 
-        String[] titles = new String[]{
-                "本地测试图片 1",
-                "本地测试图片 2",
-                "本地测试图片 3"
+        // 网络图片
+        String[] onlineImages = new String[]{
+                "https://picsum.photos/400/300",
+                "https://picsum.photos/id/237/400/300",
+                "https://picsum.photos/id/870/600/400",
+                "https://picsum.photos/id/1084/400/300",
+                "https://picsum.photos/seed/picsum/400/300"
         };
 
         for (int i = start; i < start + 10; i++) {
 
             int cardType = (i % 2 == 0)
-                    ? FeedItem.CARD_TYPE_TEXT
-                    : FeedItem.CARD_TYPE_IMAGE;
+                    ? FeedItem.CARD_TYPE_IMAGE   // 测试网络图
+                    : FeedItem.CARD_TYPE_TEXT;
 
-            int layoutType = (i % 3 == 0)
+            int layout = (i % 3 == 0)
                     ? FeedItem.LAYOUT_SINGLE_COLUMN
                     : FeedItem.LAYOUT_DOUBLE_COLUMN;
 
             String id = "id_" + i;
 
-            if (i % 2 == 0) {
-                // 文本卡片
+            if (cardType == FeedItem.CARD_TYPE_TEXT) {
                 list.add(new FeedItem(
-                        id,
-                        cardType,
-                        layoutType,
-                        "文本卡片 " + i,
-                        "这是文本内容 " + i,
-                        (String) null    // imageUrl
+                        id, cardType, layout,
+                        "文本标题 " + i,
+                        "文本内容 " + i,
+                        (String) null
                 ));
             } else {
-                // 本地图片卡片
-                int imageRes = localImages[i % localImages.length];
-                list.add(new FeedItem(
-                        id,
-                        cardType,
-                        layoutType,
-                        titles[i % titles.length],
-                        "本地图片卡片描述 " + i,
-                        imageRes
-                ));
+                if (i % 2 == 0) {
+                    // 网络图片
+                    list.add(new FeedItem(
+                            id, cardType, layout,
+                            "网络图片 " + i,
+                            "这是一个网络图片",
+                            onlineImages[i % onlineImages.length]
+                    ));
+                } else {
+                    // 本地图片
+                    list.add(new FeedItem(
+                            id, cardType, layout,
+                            "本地图片 " + i,
+                            "这是一个本地图片",
+                            localImages[i % localImages.length]
+                    ));
+                }
             }
         }
 
         return list;
     }
+
 }
