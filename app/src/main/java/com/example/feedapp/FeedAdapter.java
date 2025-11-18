@@ -1,5 +1,5 @@
 package com.example.feedapp; // 注意改成你自己的包名
-
+import com.bumptech.glide.Glide;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -71,8 +71,18 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         } else if (holder instanceof ImageVH) {
             ImageVH h = (ImageVH) holder;
             h.tvTitle.setText(item.title);
-            // 暂时不加载真实图片，先占位
-            h.ivImage.setImageResource(android.R.drawable.ic_menu_gallery);
+
+            if (item.imageRes != 0) {
+                // 本地图片
+                h.ivImage.setImageResource(item.imageRes);
+            } else {
+                // 网络图片
+                Glide.with(context)
+                        .load(item.imageUrl)
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .centerCrop()
+                        .into(h.ivImage);
+            }
         }
     }
 

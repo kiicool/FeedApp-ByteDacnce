@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp;  // 改成你的包名
 
 import android.os.Bundle;
 
@@ -90,23 +90,55 @@ public class MainActivity extends AppCompatActivity {
     // 简单模拟一些假数据
     private List<FeedItem> mockData(int start) {
         List<FeedItem> list = new ArrayList<>();
+
+        int[] localImages = new int[]{
+                R.drawable.test1,
+                R.drawable.test2,
+                R.drawable.test3
+        };
+
+        String[] titles = new String[]{
+                "本地测试图片 1",
+                "本地测试图片 2",
+                "本地测试图片 3"
+        };
+
         for (int i = start; i < start + 10; i++) {
-            int type = (i % 2 == 0)
+
+            int cardType = (i % 2 == 0)
                     ? FeedItem.CARD_TYPE_TEXT
                     : FeedItem.CARD_TYPE_IMAGE;
-            int layout = (i % 3 == 0)
+
+            int layoutType = (i % 3 == 0)
                     ? FeedItem.LAYOUT_SINGLE_COLUMN
                     : FeedItem.LAYOUT_DOUBLE_COLUMN;
 
-            list.add(new FeedItem(
-                    "id_" + i,
-                    type,
-                    layout,
-                    "标题 " + i,
-                    "这是第 " + i + " 条测试数据",
-                    "https://example.com/" + i   // 先不用真地址
-            ));
+            String id = "id_" + i;
+
+            if (i % 2 == 0) {
+                // 文本卡片
+                list.add(new FeedItem(
+                        id,
+                        cardType,
+                        layoutType,
+                        "文本卡片 " + i,
+                        "这是文本内容 " + i,
+                        (String) null    // imageUrl
+                ));
+            } else {
+                // 本地图片卡片
+                int imageRes = localImages[i % localImages.length];
+                list.add(new FeedItem(
+                        id,
+                        cardType,
+                        layoutType,
+                        titles[i % titles.length],
+                        "本地图片卡片描述 " + i,
+                        imageRes
+                ));
+            }
         }
+
         return list;
     }
 }

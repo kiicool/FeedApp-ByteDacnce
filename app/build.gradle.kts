@@ -36,8 +36,7 @@ android {
 dependencies {
     implementation(libs.appcompat)
     implementation(libs.androidx.swiperefreshlayout)
-    implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("com.github.bumptech.glide:glide:5.0.5")
     implementation(libs.androidx.recyclerview)
     implementation(libs.material)
     implementation(libs.activity)
@@ -45,4 +44,5 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    annotationProcessor("com.github.bumptech.glide:compiler:5.0.5")
 }
