@@ -1,6 +1,9 @@
-package com.example.feedapp;  // 改成你的包名
+package com.example.feedapp;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,13 +19,19 @@ public class MainActivity extends AppCompatActivity {
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private FeedAdapter adapter;
+
     private boolean isLoadingMore = false;
     private boolean hasMore = true;
+    private int currentPage = 0;
+
+    private static final int PAGE_SIZE = 10;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // 就是你刚改的那个 XML
+        setContentView(R.layout.activity_main);
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
@@ -33,7 +42,20 @@ public class MainActivity extends AppCompatActivity {
         layoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
-                FeedItem item = adapter.getItem(position);
+                // footer 占两列，普通卡片按自己的 layoutType
+                if (position == adapter.getItemCount() - 1 &&
+                        adapter.getItemCount() > 0 &&
+                        adapter.getItemViewType(position) == 100) { // VIEW_TYPE_FOOTER
+                    return 2;
+                }
+
+                FeedItem item;
+                try {
+                    item = adapter.getItem(position);
+                } catch (IndexOutOfBoundsException e) {
+                    return 2;
+                }
+
                 if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
                     return 2; // 单列，占两列
                 } else {
@@ -48,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
         // 下拉刷新
         swipeRefreshLayout.setOnRefreshListener(this::refreshData);
 
-        // 滑动到底自动加载更多（简单版本）
+        // 滑到底加载更多
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@Nullable RecyclerView rv, int dx, int dy) {
@@ -64,41 +86,89 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 首次进入自动刷新一次
+        // footer 点击重试
+        adapter.setFooterRetryListener(() -> {
+            if (!isLoadingMore && hasMore) {
+                loadMore();
+            }
+        });
+
+        // 首次进入自动刷新
         swipeRefreshLayout.setRefreshing(true);
         refreshData();
     }
 
     private void refreshData() {
-        List<FeedItem> list = mockData(0);
-        adapter.setItems(list);
-        swipeRefreshLayout.setRefreshing(false);
+        currentPage = 0;
         hasMore = true;
+        isLoadingMore = false;
+        adapter.setFooterState(FeedAdapter.FOOTER_STATE_HIDDEN);
+
+        requestPage(true);
     }
 
     private void loadMore() {
+        if (isLoadingMore || !hasMore) return;
+
         isLoadingMore = true;
-        List<FeedItem> more = mockData(adapter.getItemCount());
-        if (more.isEmpty()) {
-            hasMore = false;
-        } else {
-            adapter.addItems(more);
-        }
-        isLoadingMore = false;
+        adapter.setFooterState(FeedAdapter.FOOTER_STATE_LOADING);
+
+        requestPage(false);
     }
 
-    // 简单模拟一些假数据
+    // 模拟网络请求：用 Handler 延迟 800ms
+    private void requestPage(boolean isRefresh) {
+        handler.postDelayed(() -> {
+
+            // 设置加载失败/成果
+            boolean simulateError = false;
+            // 第 3 页模拟失败：
+            simulateError = (!isRefresh && currentPage == 2);
+
+            if (simulateError) {
+                isLoadingMore = false;
+                if (isRefresh) {
+                    swipeRefreshLayout.setRefreshing(false);
+                    Toast.makeText(this, "刷新失败", Toast.LENGTH_SHORT).show();
+                } else {
+                    adapter.setFooterState(FeedAdapter.FOOTER_STATE_ERROR);
+                }
+                return;
+            }
+
+            int start = currentPage * PAGE_SIZE;
+            List<FeedItem> page = mockData(start);
+
+            if (isRefresh) {
+                adapter.setItems(page);
+                swipeRefreshLayout.setRefreshing(false);
+            } else {
+                adapter.addItems(page);
+            }
+
+            // 判断是否还有更多数据（这里简单按页数判断）
+            if (page.size() < PAGE_SIZE) {
+                hasMore = false;
+                adapter.setFooterState(FeedAdapter.FOOTER_STATE_NO_MORE);
+            } else {
+                hasMore = true;
+                currentPage++;
+                isLoadingMore = false;
+                adapter.setFooterState(FeedAdapter.FOOTER_STATE_HIDDEN);
+            }
+
+        }, 800);
+    }
+
     private List<FeedItem> mockData(int start) {
         List<FeedItem> list = new ArrayList<>();
 
-        // 本地图片
         int[] localImages = new int[]{
                 R.drawable.test1,
                 R.drawable.test2,
                 R.drawable.test3
         };
 
-        // 网络图片
         String[] onlineImages = new String[]{
                 "https://picsum.photos/400/300",
                 "https://picsum.photos/id/237/400/300",
@@ -107,10 +177,9 @@ public class MainActivity extends AppCompatActivity {
                 "https://picsum.photos/seed/picsum/400/300"
         };
 
-        for (int i = start; i < start + 10; i++) {
-
+        for (int i = start; i < start + PAGE_SIZE; i++) {
             int cardType = (i % 2 == 0)
-                    ? FeedItem.CARD_TYPE_IMAGE   // 测试网络图
+                    ? FeedItem.CARD_TYPE_IMAGE
                     : FeedItem.CARD_TYPE_TEXT;
 
             int layout = (i % 3 == 0)
@@ -128,19 +197,17 @@ public class MainActivity extends AppCompatActivity {
                 ));
             } else {
                 if (i % 2 == 0) {
-                    // 网络图片
                     list.add(new FeedItem(
                             id, cardType, layout,
                             "网络图片 " + i,
-                            "这是一个网络图片",
+                            "网络图 " + i,
                             onlineImages[i % onlineImages.length]
                     ));
                 } else {
-                    // 本地图片
                     list.add(new FeedItem(
                             id, cardType, layout,
                             "本地图片 " + i,
-                            "这是一个本地图片",
+                            "本地图 " + i,
                             localImages[i % localImages.length]
                     ));
                 }
@@ -149,5 +216,4 @@ public class MainActivity extends AppCompatActivity {
 
         return list;
     }
-
 }
