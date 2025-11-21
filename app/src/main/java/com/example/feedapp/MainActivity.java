@@ -1,10 +1,11 @@
 package com.example.feedapp;
 
+import androidx.appcompat.widget.Toolbar;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
-
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -15,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-
+    private ExposureManager exposureManager;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private FeedAdapter adapter;
@@ -32,7 +33,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        Toolbar toolbar = findViewById(R.id.myToolbar);
+        setSupportActionBar(toolbar);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
 
@@ -96,6 +98,36 @@ public class MainActivity extends AppCompatActivity {
         // 首次进入自动刷新
         swipeRefreshLayout.setRefreshing(true);
         refreshData();
+        exposureManager = new ExposureManager(recyclerView, layoutManager, adapter,
+                new ExposureManager.ExposureListener() {
+                    @Override
+                    public void onItemExposed(FeedItem item, int position, float visibleRatio) {
+                        String msg = "EXPOSE  id=" + item.id +
+                                " pos=" + position +
+                                " ratio=" + String.format("%.2f", visibleRatio);
+                        ExposureLogger.log(msg);
+                    }
+
+                    @Override
+                    public void onItemFullyVisible(FeedItem item, int position) {
+                        String msg = "FULL    id=" + item.id +
+                                " pos=" + position;
+                        ExposureLogger.log(msg);
+                    }
+
+                    @Override
+                    public void onItemHidden(FeedItem item,
+                                             int position,
+                                             float lastVisibleRatio,
+                                             long totalVisibleMillis) {
+                        String msg = "HIDE    id=" + item.id +
+                                " pos=" + position +
+                                " lastRatio=" + String.format("%.2f", lastVisibleRatio) +
+                                " time=" + totalVisibleMillis + "ms";
+                        ExposureLogger.log(msg);
+                    }
+                });
+
     }
 
     private void refreshData() {
@@ -123,7 +155,7 @@ public class MainActivity extends AppCompatActivity {
             // 设置加载失败/成果
             boolean simulateError = false;
             // 第 3 页模拟失败：
-            simulateError = (!isRefresh && currentPage == 2);
+            //simulateError = (!isRefresh && currentPage == 2);
 
             if (simulateError) {
                 isLoadingMore = false;
@@ -158,6 +190,21 @@ public class MainActivity extends AppCompatActivity {
             }
 
         }, 800);
+    }
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_debug_exposure) {
+            startActivity(new android.content.Intent(this, DebugExposureActivity.class));
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private List<FeedItem> mockData(int start) {

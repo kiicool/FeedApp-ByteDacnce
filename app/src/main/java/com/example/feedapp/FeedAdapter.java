@@ -18,9 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
-    // 普通卡片 viewType 就用 FeedItem.cardType（1 文本 / 2 图片）
-    private static final int VIEW_TYPE_FOOTER = 100;
+    public static final int VIEW_TYPE_FOOTER = 100;
 
     // footer 状态
     public static final int FOOTER_STATE_HIDDEN  = -1; // 不显示 footer
