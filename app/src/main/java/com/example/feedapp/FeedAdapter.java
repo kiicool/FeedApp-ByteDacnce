@@ -21,9 +21,9 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public static final int VIEW_TYPE_FOOTER = 100;
 
     // footer 状态
-    public static final int FOOTER_STATE_HIDDEN  = -1; // 不显示 footer
+    public static final int FOOTER_STATE_HIDDEN = -1; // 不显示 footer
     public static final int FOOTER_STATE_LOADING = 0;  // 加载中
-    public static final int FOOTER_STATE_ERROR   = 1;  // 加载失败，可重试
+    public static final int FOOTER_STATE_ERROR = 1;  // 加载失败，可重试
     public static final int FOOTER_STATE_NO_MORE = 2;  // 没有更多
 
     private final Context context;
@@ -80,10 +80,14 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
         if (viewType == FeedItem.CARD_TYPE_TEXT) {
             View view = inflater.inflate(R.layout.item_text_card, parent, false);
-            return new TextVH(view);
+            TextVH holder = new TextVH(view); // 先创建 holder
+            bindLongClickDelete(holder);     // 再绑定监听器
+            return holder;
         } else if (viewType == FeedItem.CARD_TYPE_IMAGE) {
             View view = inflater.inflate(R.layout.item_image_card, parent, false);
-            return new ImageVH(view);
+            ImageVH holder = new ImageVH(view); // 先创建 holder
+            bindLongClickDelete(holder);      // 再绑定监听器
+            return holder;
         } else { // footer
             View view = inflater.inflate(R.layout.item_load_more_footer, parent, false);
             return new FooterVH(view);
@@ -111,21 +115,43 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             ImageVH h = (ImageVH) holder;
             h.tvTitle.setText(item.title);
 
+            Glide.with(context).clear(h.ivImage);
+
+            // 大致估算一下目标宽度：单列≈屏幕宽，双列≈屏幕宽的一半
+            int screenWidth = h.itemView.getResources().getDisplayMetrics().widthPixels;
+            int targetWidth;
+            if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
+                targetWidth = screenWidth;
+            } else {
+                targetWidth = screenWidth / 2;
+            }
+            // 假设 4:3 比例，算个目标高度（只是给解码一个上界）
+            int targetHeight = (int) (targetWidth * 3f / 4f);
+
             if (item.imageRes != 0) { // 本地图
-                h.ivImage.setImageResource(item.imageRes);
+                Glide.with(context)
+                        .load(item.imageRes)
+                        .override(targetWidth, targetHeight)       // 下采样到合适分辨率
+                        .centerCrop()
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .error(android.R.drawable.ic_menu_report_image)
+
+                        .into(h.ivImage);
+
             } else if (item.imageUrl != null) { // 网络图
                 Glide.with(context)
                         .load(item.imageUrl)
-                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .override(targetWidth, targetHeight)       // 同样下采样
                         .centerCrop()
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .error(android.R.drawable.ic_menu_report_image)
+                        .dontAnimate()
                         .into(h.ivImage);
-            } else { // 都没有，给个占位
+
+            } else { // 如果一个图片类型的 Item 没有任何图片信息，也给一个明确的显示
                 h.ivImage.setImageResource(android.R.drawable.ic_menu_report_image);
             }
         }
-
-        // 所有普通卡片都支持长按删除
-        bindLongClickDelete(holder);
     }
 
     private void bindFooter(FooterVH h) {
@@ -192,8 +218,24 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     // 对外提供设置 footer 状态的方法
     public void setFooterState(int newState) {
         if (footerState == newState) return;
-        footerState = newState;
-        notifyDataSetChanged(); // 简单粗暴一点，先全刷新
+
+        int oldState = this.footerState;
+        this.footerState = newState;
+
+        // 判断 footer 的可见性是否发生了变化
+        boolean wasVisible = (oldState != FOOTER_STATE_HIDDEN);
+        boolean isVisible = (newState != FOOTER_STATE_HIDDEN);
+
+        if (wasVisible && !isVisible) {
+
+            notifyItemRemoved(items.size());
+        } else if (!wasVisible && isVisible) {
+
+            notifyItemInserted(items.size());
+        } else if (wasVisible && isVisible) {
+
+            notifyItemChanged(items.size());
+        }
     }
 
     // 文本卡片 ViewHolder
