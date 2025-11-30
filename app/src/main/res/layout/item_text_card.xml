@@ -6,13 +6,14 @@
     android:layout_margin="4dp">
 
     <!--
-        【核心修改】
-        1. 移除了顶部的 FrameLayout 占位区域。
-        2. 将固定高度和居中属性应用到这个 LinearLayout 上。
+        这里给一个 minHeight，保证整体高度不会比“图片卡片”小太多
+        图片卡片：160dp 图 + 上下 padding 和文字，整体大概 220~240dp
+        这里取 220dp 作为基准
     -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="160dp"
+        android:layout_height="wrap_content"
+        android:minHeight="220dp"
         android:orientation="vertical"
         android:gravity="center_vertical"
         android:padding="16dp">

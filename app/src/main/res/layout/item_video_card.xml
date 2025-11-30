@@ -11,14 +11,14 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <!-- 顶部：视频区域，高度统一 160dp -->
+        <!-- 顶部：视频区域，高度统一 160dp，和图片卡的图片高度一致 -->
         <FrameLayout
             android:id="@+id/playerContainer"
             android:layout_width="match_parent"
             android:layout_height="160dp"
             android:background="#000000">
 
-            <!-- 封面图 -->
+            <!-- 封面图：等价于图片卡片的 ivImage -->
             <ImageView
                 android:id="@+id/ivCover"
                 android:layout_width="match_parent"
@@ -37,7 +37,7 @@
 
         </FrameLayout>
 
-        <!-- 标题：和图片卡片一样样式 -->
+        <!-- 标题：和图片卡片一样 -->
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
@@ -48,7 +48,7 @@
             android:textStyle="bold"
             tools:text="视频标题" />
 
-        <!-- 描述：和图片卡片一致，最多三行 -->
+        <!-- 描述：和图片卡片一样（最多三行） -->
         <TextView
             android:id="@+id/tvDesc"
             android:layout_width="match_parent"

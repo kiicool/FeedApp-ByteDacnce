@@ -246,12 +246,16 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView ivImage;
         TextView tvTitle;
         TextView tvDesc;
+        // 【新增】让 ImageVH 也持有对播放按钮的引用
+        ImageView ivPlayButton;
 
         public ImageVH(@NonNull View itemView) {
             super(itemView);
             ivImage = itemView.findViewById(R.id.ivImage);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvDesc = itemView.findViewById(R.id.tvDesc);
+            // 【新增】尝试找到播放按钮，如果找不到会返回 null
+            ivPlayButton = itemView.findViewById(R.id.ivPlayButton);
         }
 
         @Override
@@ -259,7 +263,11 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvTitle.setText(item.title);
             tvDesc.setText(item.description);
 
-            // 这里不再管任何“播放按钮”，ImageVH 只负责图片和文字
+            // 【核心修复】如果这个 ViewHolder 上有关联到播放按钮（说明是复用的视频视图），则明确地隐藏它
+            if (ivPlayButton != null) {
+                ivPlayButton.setVisibility(View.GONE);
+            }
+
             Glide.with(itemView.getContext()).clear(ivImage);
             if (item.imageRes != 0) {
                 Glide.with(itemView.getContext()).load(item.imageRes).into(ivImage);
@@ -292,7 +300,9 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         public void bind(FeedItem item) {
             tvTitle.setText(item.title);
             tvDesc.setText(item.description);
-            Glide.with(itemView.getContext()).load(item.imageUrl).into(ivCover);
+
+            Object coverSource = item.imageUrl != null ? item.imageUrl : item.imageRes;
+            Glide.with(itemView.getContext()).load(coverSource).into(ivCover);
 
             // 每次绑定时，都恢复初始状态，显示封面和播放按钮
             ivCover.setVisibility(View.VISIBLE);

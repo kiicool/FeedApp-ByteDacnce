@@ -61,23 +61,34 @@ public class MockDataGenerator {
                 }
             }
 
-            // --- 【核心修改】从 ContentRepository 获取内容 ---
+            // --- 从 ContentRepository 获取内容 ---
             String id = "id_" + i;
             // 随机从内容库中挑选，避免固定的重复模式
             int randomIndex = (int) (Math.random() * ContentRepository.getTotalCount());
             ContentEntry content = ContentRepository.getEntry(randomIndex);
 
-            // --- 根据获取到的内容类型，创建对应的 FeedItem ---
+            // --- 【核心修改】根据获取到的内容类型，创建对应的 FeedItem ---
             switch (content.type) {
                 case ContentEntry.TYPE_VIDEO:
-                    list.add(new FeedItem(id, layout, content.title, content.description, content.imageUrl, content.videoUrl));
+                    // 调用包含 imageUrl 和 imageRes 的视频构造函数
+                    list.add(new FeedItem(id, layout, content.title, content.description, content.imageUrl, content.imageRes, content.videoUrl));
                     break;
+
                 case ContentEntry.TYPE_TEXT:
-                    list.add(new FeedItem(id, FeedItem.CARD_TYPE_TEXT, layout, content.title, content.description, (String) null));
+                    // 调用纯文本的构造函数
+                    list.add(new FeedItem(id, layout, content.title, content.description));
                     break;
+
                 case ContentEntry.TYPE_IMAGE:
                 default:
-                    list.add(new FeedItem(id, FeedItem.CARD_TYPE_IMAGE, layout, content.title, content.description, content.imageUrl));
+                    // 判断 ContentEntry 是用网络图还是本地图创建的
+                    if (content.imageUrl != null) {
+                        // 调用接收网络 URL 的图文构造函数
+                        list.add(new FeedItem(id, layout, content.title, content.description, content.imageUrl));
+                    } else {
+                        // 调用接收本地资源 ID 的图文构造函数
+                        list.add(new FeedItem(id, layout, content.title, content.description, content.imageRes));
+                    }
                     break;
             }
         }

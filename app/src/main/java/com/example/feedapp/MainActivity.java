@@ -12,8 +12,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import java.util.List;
@@ -23,7 +23,8 @@ public class MainActivity extends AppCompatActivity {
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private FeedAdapter adapter;
-    private RecyclerView.LayoutManager layoutManager; // 使用通用的 LayoutManager
+    // 用一个通用的 LayoutManager 引用来保存实际的 GridLayoutManager
+    private RecyclerView.LayoutManager layoutManager;
 
     private boolean isLoadingMore = false;
     private boolean hasMore = true;
@@ -32,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
 
     // 持有 MockDataGenerator 的实例
     private MockDataGenerator mockDataGenerator;
-    // 【新增】视频播放管理器
+    // 视频播放管理器
     private VideoPlayerManager videoPlayerManager;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -42,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 【新增】初始化 VideoPlayerManager
         videoPlayerManager = VideoPlayerManager.getInstance(this);
         mockDataGenerator = new MockDataGenerator();
 
@@ -65,12 +65,31 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         adapter = new FeedAdapter(this);
 
-        // 【修改】切换为 StaggeredGridLayoutManager 以更好地支持视频和不同高度的 Item
-        this.layoutManager = new StaggeredGridLayoutManager(2, StaggeredGridLayoutManager.VERTICAL);
-        ((StaggeredGridLayoutManager) this.layoutManager)
-                .setGapStrategy(StaggeredGridLayoutManager.GAP_HANDLING_MOVE_ITEMS_BETWEEN_SPANS);
+        // ==== 关键修改：使用 GridLayoutManager + SpanSizeLookup ====
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
 
-        recyclerView.setLayoutManager(this.layoutManager);
+        gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                int viewType = adapter.getItemViewType(position);
+                // footer 独占一整行
+                if (viewType == FeedAdapter.VIEW_TYPE_FOOTER) {
+                    return 2;
+                }
+
+                FeedItem item = adapter.getItem(position);
+                if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
+                    // 单列：占满两列（整行）
+                    return 2;
+                } else {
+                    // 双列：占一列
+                    return 1;
+                }
+            }
+        });
+
+        this.layoutManager = gridLayoutManager;
+        recyclerView.setLayoutManager(gridLayoutManager);
         recyclerView.setAdapter(adapter);
         recyclerView.setItemViewCacheSize(20);
     }
@@ -78,13 +97,14 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         swipeRefreshLayout.setOnRefreshListener(this::refreshData);
 
-        // 【新增】为 Adapter 设置视频点击监听器，实现手动播放/暂停
+        // 视频点击播放
         adapter.setOnVideoClickListener((vh, item) -> {
             if (item.videoUrl != null) {
                 videoPlayerManager.play(vh, item.videoUrl);
             }
         });
 
+        // 滚动监听，处理 loadMore
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
@@ -94,20 +114,16 @@ public class MainActivity extends AppCompatActivity {
                 int totalItemCount = layoutManager.getItemCount();
                 int lastVisibleItemPosition = -1;
 
-                if (layoutManager instanceof StaggeredGridLayoutManager) {
-                    int[] lastPositions = ((StaggeredGridLayoutManager) layoutManager).findLastVisibleItemPositions(null);
-                    if (lastPositions != null && lastPositions.length > 0) {
-                        for (int pos : lastPositions) {
-                            if (pos > lastVisibleItemPosition) {
-                                lastVisibleItemPosition = pos;
-                            }
-                        }
-                    }
+                if (layoutManager instanceof GridLayoutManager) {
+                    lastVisibleItemPosition =
+                            ((GridLayoutManager) layoutManager).findLastVisibleItemPosition();
                 }
 
                 final int THRESHOLD = 3;
-                if (lastVisibleItemPosition != -1 && !isLoadingMore && hasMore &&
-                        lastVisibleItemPosition >= totalItemCount - 1 - THRESHOLD) {
+                if (lastVisibleItemPosition != -1
+                        && !isLoadingMore
+                        && hasMore
+                        && lastVisibleItemPosition >= totalItemCount - 1 - THRESHOLD) {
                     rv.post(MainActivity.this::loadMore);
                 }
             }
@@ -115,12 +131,15 @@ public class MainActivity extends AppCompatActivity {
 
         adapter.setFooterRetryListener(this::loadMore);
 
-        // 【修改】设置 ExposureManager 的回调以实现自动播放
-        exposureManager = new ExposureManager(recyclerView, layoutManager, adapter,
+        // 曝光统计，继续用通用的 layoutManager 引用
+        exposureManager = new ExposureManager(
+                recyclerView,
+                layoutManager,
+                adapter,
                 new ExposureManager.ExposureListener() {
                     @Override
                     public void onItemExposed(FeedItem item, int position, float visibleRatio) {
-                        // 可以留空
+                        // 可选：不做事
                     }
 
                     @Override
@@ -128,21 +147,28 @@ public class MainActivity extends AppCompatActivity {
                         String msg = "FULL    id=" + item.id + " pos=" + position;
                         ExposureLogger.log(msg);
 
-                        // 自动播放的核心逻辑
-                        RecyclerView.ViewHolder holder = recyclerView.findViewHolderForAdapterPosition(position);
+                        // 自动播放视频
+                        RecyclerView.ViewHolder holder =
+                                recyclerView.findViewHolderForAdapterPosition(position);
                         if (holder instanceof FeedAdapter.VideoVH) {
-                            videoPlayerManager.play((FeedAdapter.VideoVH) holder, item.videoUrl);
+                            videoPlayerManager.play(
+                                    (FeedAdapter.VideoVH) holder,
+                                    item.videoUrl
+                            );
                         } else {
-                            // 如果滑到的是非视频区域，则停止所有播放
                             videoPlayerManager.stop();
                         }
                     }
 
                     @Override
-                    public void onItemHidden(FeedItem item, int position, float lastVisibleRatio, long totalVisibleMillis) {
-                        // 可以留空
+                    public void onItemHidden(FeedItem item,
+                                             int position,
+                                             float lastVisibleRatio,
+                                             long totalVisibleMillis) {
+                        // 可选：不做事
                     }
-                });
+                }
+        );
     }
 
     private void refreshData() {
@@ -178,7 +204,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             int start = currentPage * PAGE_SIZE;
-            List<FeedItem> page = mockDataGenerator.generatePageData(start, PAGE_SIZE);
+            List<FeedItem> page =
+                    mockDataGenerator.generatePageData(start, PAGE_SIZE);
             isLoadingMore = false;
 
             if (isRefresh) {
@@ -199,7 +226,6 @@ public class MainActivity extends AppCompatActivity {
         }, 800);
     }
 
-    // 【新增】生命周期管理，确保播放器被正确释放
     @Override
     protected void onPause() {
         super.onPause();
@@ -216,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Menu 相关代码
+    // Menu 相关
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
