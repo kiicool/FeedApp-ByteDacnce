@@ -6,6 +6,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
@@ -14,19 +15,33 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 负责 RecyclerView 中卡片的曝光统计：
+ * - 进入可见区域
+ * - 完全可见
+ * - 离开可见区域
+ * 同时记录停留时长。
+ */
 public class ExposureManager {
 
+    /**
+     * 曝光事件回调。
+     */
     public interface ExposureListener {
-        // 第一次进入可视区域（可见比例 > 0）
+        /** 第一次进入可视区域（可见比例 > 0） */
         void onItemExposed(@NonNull FeedItem item, int position, float visibleRatio);
 
-        // 第一次达到 100% 可见
+        /** 第一次达到 100% 可见 */
         void onItemFullyVisible(@NonNull FeedItem item, int position);
 
-        // 从可视区域彻底消失
-        void onItemHidden(@NonNull FeedItem item, int position, float lastVisibleRatio, long totalVisibleMillis);
+        /** 从可视区域彻底消失 */
+        void onItemHidden(@NonNull FeedItem item, int position,
+                          float lastVisibleRatio, long totalVisibleMillis);
     }
 
+    /**
+     * 单个 item 的曝光状态。
+     */
     private static class ItemState {
         float lastRatio = 0f;
         int lastPosition = RecyclerView.NO_POSITION;
@@ -37,60 +52,86 @@ public class ExposureManager {
     }
 
     private final RecyclerView recyclerView;
-    // 【修改】使用通用的 LayoutManager 类型
-    private final RecyclerView.LayoutManager layoutManager;
+    private RecyclerView.LayoutManager layoutManager;
     private final FeedAdapter adapter;
     private final ExposureListener listener;
 
+    /** 以 item.id 作为 key 记录状态 */
     private final Map<String, ItemState> stateMap = new HashMap<>();
 
-    // 【核心修改】构造函数接受通用的 LayoutManager
-    public ExposureManager(RecyclerView recyclerView,
-                           RecyclerView.LayoutManager layoutManager,
-                           FeedAdapter adapter,
-                           ExposureListener listener) {
+    /** 上一次执行曝光计算的时间，用于节流 */
+    private long lastCheckTime = 0L;
+
+    public ExposureManager(@NonNull RecyclerView recyclerView,
+                           @NonNull RecyclerView.LayoutManager layoutManager,
+                           @NonNull FeedAdapter adapter,
+                           @NonNull ExposureListener listener) {
         this.recyclerView = recyclerView;
         this.layoutManager = layoutManager;
         this.adapter = adapter;
         this.listener = listener;
-
         attach();
     }
 
+    /**
+     * 监听滚动与状态变化，触发曝光计算。
+     */
     private void attach() {
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 super.onScrolled(rv, dx, dy);
-                checkExposure();
+                // 滚动过程中使用节流版曝光计算（只处理当前可见项）
+                checkExposure(false);
             }
 
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
                 super.onScrollStateChanged(rv, newState);
-                // 停止滚动时再算一遍，保证停留状态被记录
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    checkExposure();
+                    // 停止滚动时强制全量结算一次（包括离屏项）
+                    checkExposure(true);
                 }
             }
         });
 
-        // 初次布局完成也算一遍
-        recyclerView.post(this::checkExposure);
+        // 初次布局完成后也结算一次
+        recyclerView.post(() -> checkExposure(true));
     }
 
+    /**
+     * 对外无参入口，默认按“滚动中”处理。
+     */
     private void checkExposure() {
-        if (adapter.getItemCount() == 0 || layoutManager == null) return;
+        checkExposure(false);
+    }
 
-        // 【核心修改】兼容不同 LayoutManager 来获取可见范围
+    /**
+     * 核心曝光计算：
+     * @param force true 时强制全量结算（含离屏），false 时做节流处理。
+     */
+    private void checkExposure(boolean force) {
+        if (adapter.getItemCount() == 0) return;
+
+        // 防止 LayoutManager 被更换
+        RecyclerView.LayoutManager lm = recyclerView.getLayoutManager();
+        if (lm == null) return;
+        layoutManager = lm;
+
+        long now = SystemClock.uptimeMillis();
+
+        // 滚动过程中做时间节流，避免每一帧都计算
+        if (!force) {
+            if (now - lastCheckTime < 80) { // 约 12fps，已经足够平滑
+                return;
+            }
+        }
+        lastCheckTime = now;
+
         int firstVisibleItemPosition = RecyclerView.NO_POSITION;
         int lastVisibleItemPosition = RecyclerView.NO_POSITION;
 
-        if (layoutManager instanceof GridLayoutManager) {
-            GridLayoutManager glm = (GridLayoutManager) layoutManager;
-            firstVisibleItemPosition = glm.findFirstVisibleItemPosition();
-            lastVisibleItemPosition = glm.findLastVisibleItemPosition();
-        } else if (layoutManager instanceof StaggeredGridLayoutManager) {
+        if (layoutManager instanceof StaggeredGridLayoutManager) {
             StaggeredGridLayoutManager sglm = (StaggeredGridLayoutManager) layoutManager;
             int[] firstVisibleItems = sglm.findFirstVisibleItemPositions(null);
             int[] lastVisibleItems = sglm.findLastVisibleItemPositions(null);
@@ -111,21 +152,29 @@ public class ExposureManager {
                     }
                 }
             }
+        } else if (layoutManager instanceof GridLayoutManager) {
+            GridLayoutManager glm = (GridLayoutManager) layoutManager;
+            firstVisibleItemPosition = glm.findFirstVisibleItemPosition();
+            lastVisibleItemPosition = glm.findLastVisibleItemPosition();
+        } else if (layoutManager instanceof LinearLayoutManager) {
+            LinearLayoutManager llm = (LinearLayoutManager) layoutManager;
+            firstVisibleItemPosition = llm.findFirstVisibleItemPosition();
+            lastVisibleItemPosition = llm.findLastVisibleItemPosition();
         }
 
-        if (firstVisibleItemPosition == RecyclerView.NO_POSITION || lastVisibleItemPosition == RecyclerView.NO_POSITION) {
+        if (firstVisibleItemPosition == RecyclerView.NO_POSITION
+                || lastVisibleItemPosition == RecyclerView.NO_POSITION) {
             return;
         }
 
-        long now = SystemClock.uptimeMillis();
         Set<String> currentlyVisible = new HashSet<>();
-
         Rect rect = new Rect();
 
-        // 后续的曝光计算逻辑，因为使用了通用的 first/last 变量，所以无需修改
+        // 第一圈：只处理当前屏幕上可见的 item，更新比例和事件
         for (int pos = firstVisibleItemPosition; pos <= lastVisibleItemPosition; pos++) {
             if (pos < 0 || pos >= adapter.getItemCount()) continue;
 
+            // 跳过 footer
             if (adapter.getItemViewType(pos) == FeedAdapter.VIEW_TYPE_FOOTER) {
                 continue;
             }
@@ -151,28 +200,42 @@ public class ExposureManager {
                 stateMap.put(item.id, state);
             }
 
-            if (state.lastRatio == 0f && ratio > 0f) {
-                state.visibleStartTime = now;
+            state.lastPosition = pos;
+
+            if (ratio > 0f) {
+                currentlyVisible.add(item.id);
+
+                // 开始可见，记录起始时间
+                if (state.visibleStartTime == 0L) {
+                    state.visibleStartTime = now;
+                }
+
+                // 第一次曝光
                 if (!state.hasExposed) {
                     state.hasExposed = true;
                     if (listener != null) {
                         listener.onItemExposed(item, pos, ratio);
                     }
                 }
-            }
 
-            if (!state.hasFullVisible && ratio >= 1.0f) {
-                state.hasFullVisible = true;
-                if (listener != null) {
-                    listener.onItemFullyVisible(item, pos);
+                // 第一次 100% 可见
+                if (!state.hasFullVisible && ratio >= 1f) {
+                    state.hasFullVisible = true;
+                    if (listener != null) {
+                        listener.onItemFullyVisible(item, pos);
+                    }
                 }
             }
 
             state.lastRatio = ratio;
-            state.lastPosition = pos;
-            currentlyVisible.add(item.id);
         }
 
+        // 如果不是强制结算，滚动时到此结束，不去处理“离屏项”
+        if (!force) {
+            return;
+        }
+
+        // 第二圈：只在 force=true 时处理已经离开屏幕的 item，结算停留时长并触发隐藏事件
         for (Map.Entry<String, ItemState> entry : stateMap.entrySet()) {
             String id = entry.getKey();
             ItemState state = entry.getValue();
@@ -191,7 +254,8 @@ public class ExposureManager {
                     if (pos >= 0 && pos < adapter.getItemCount()) {
                         FeedItem item = adapter.getItem(pos);
                         if (item != null) {
-                            listener.onItemHidden(item, pos, state.lastRatio, state.totalVisibleTime);
+                            listener.onItemHidden(item, pos,
+                                    state.lastRatio, state.totalVisibleTime);
                         }
                     }
                 }

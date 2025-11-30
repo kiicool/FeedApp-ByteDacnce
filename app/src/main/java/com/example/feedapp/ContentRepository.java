@@ -59,7 +59,7 @@ public class ContentRepository {
         entries.add(new ContentEntry(
                 "大象之梦",
                 "另一部充满想象力的开源动画电影。",
-                "https://storage.googleapis.com/exoplayer-test-media-1/ElephantsDream_320x180.jpg", // 封面图
+                "https://picsum.photos/id/1041/800/600", // 封面图
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"  // 视频
         ));
 

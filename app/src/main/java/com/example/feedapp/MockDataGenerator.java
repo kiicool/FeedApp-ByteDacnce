@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 负责生成包含复杂随机布局的模拟数据。
+ * 负责为从 ContentRepository 获取的内容应用随机布局。
  */
 public class MockDataGenerator {
 
@@ -22,24 +22,13 @@ public class MockDataGenerator {
 
     /**
      * 生成一页的模拟数据。
+     * 它从 ContentRepository 获取内容，然后为其分配随机布局。
      * @param start     起始索引
      * @param pageSize  每页数量
      * @return 一页 FeedItem 列表
      */
     public List<FeedItem> generatePageData(int start, int pageSize) {
         List<FeedItem> list = new ArrayList<>();
-        int[] localImages = new int[]{R.drawable.test1, R.drawable.test2, R.drawable.test3};
-        String[] onlineImages = new String[]{
-                "https://picsum.photos/id/1015/800/600",
-                "https://picsum.photos/id/1040/800/600",
-                "https://picsum.photos/id/237/800/600",
-        };
-        // 一些可用的公共视频URL
-        String[] onlineVideos = new String[]{
-                "http://vfx.mtime.cn/Video/2019/03/19/mp4/190319212559089721.mp4",
-                "http://vfx.mtime.cn/Video/2019/03/18/mp4/190318231014076505.mp4",
-                "http://vfx.mtime.cn/Video/2019/02/04/mp4/190204084208765161.mp4"
-        };
 
         // --- 随机布局生成逻辑 (保持不变) ---
         int[] rowWeights = {5, 4, 3, 2}; // 对应 2, 3, 4, 5 行
@@ -72,19 +61,26 @@ public class MockDataGenerator {
                 }
             }
 
-            // --- 【修改】内容生成逻辑，加入视频 ---
+            // --- 【核心修改】从 ContentRepository 获取内容 ---
             String id = "id_" + i;
-            int typeSelector = i % 3; // 0=图片, 1=文本, 2=视频
+            // 随机从内容库中挑选，避免固定的重复模式
+            int randomIndex = (int) (Math.random() * ContentRepository.getTotalCount());
+            ContentEntry content = ContentRepository.getEntry(randomIndex);
 
-            if (typeSelector == 1) { // 生成文本
-                list.add(new FeedItem(id, FeedItem.CARD_TYPE_TEXT, layout, "纯文本标题 " + i, "这是一段纯文本描述内容，用于测试列表中的不同卡片类型。", (String) null));
-            } else if (typeSelector == 2) { // 生成视频
-                list.add(new FeedItem(id, layout, "这是一个视频 " + i, "视频描述，点击可以播放和暂停。", onlineImages[i % onlineImages.length], onlineVideos[i % onlineVideos.length]));
-            } else { // 生成图片
-                list.add(new FeedItem(id, FeedItem.CARD_TYPE_IMAGE, layout, "图片标题 " + i, "这是一张网络图片。", onlineImages[i % onlineImages.length]));
+            // --- 根据获取到的内容类型，创建对应的 FeedItem ---
+            switch (content.type) {
+                case ContentEntry.TYPE_VIDEO:
+                    list.add(new FeedItem(id, layout, content.title, content.description, content.imageUrl, content.videoUrl));
+                    break;
+                case ContentEntry.TYPE_TEXT:
+                    list.add(new FeedItem(id, FeedItem.CARD_TYPE_TEXT, layout, content.title, content.description, (String) null));
+                    break;
+                case ContentEntry.TYPE_IMAGE:
+                default:
+                    list.add(new FeedItem(id, FeedItem.CARD_TYPE_IMAGE, layout, content.title, content.description, content.imageUrl));
+                    break;
             }
         }
         return list;
     }
-
 }

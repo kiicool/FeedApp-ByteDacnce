@@ -43,7 +43,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.footerRetryListener = listener;
     }
 
-    // 【新增】为 VideoVH 添加点击事件回调接口
+    // 为 VideoVH 添加点击事件回调接口
     public interface OnVideoClickListener {
         void onVideoClick(VideoVH vh, FeedItem item);
     }
@@ -156,7 +156,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         VideoVH holder = new VideoVH(view);
         bindLongClickDelete(holder);
 
-        // 【新增】为视频卡片的容器设置点击事件
         holder.playerContainer.setOnClickListener(v -> {
             int pos = holder.getBindingAdapterPosition();
             if (pos != RecyclerView.NO_POSITION && videoClickListener != null) {
@@ -259,6 +258,8 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         public void bind(FeedItem item) {
             tvTitle.setText(item.title);
             tvDesc.setText(item.description);
+
+            // 这里不再管任何“播放按钮”，ImageVH 只负责图片和文字
             Glide.with(itemView.getContext()).clear(ivImage);
             if (item.imageRes != 0) {
                 Glide.with(itemView.getContext()).load(item.imageRes).into(ivImage);
@@ -269,6 +270,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
     }
+
 
     public static class VideoVH extends RecyclerView.ViewHolder implements IBindableVH {
         FrameLayout playerContainer;
@@ -292,6 +294,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvDesc.setText(item.description);
             Glide.with(itemView.getContext()).load(item.imageUrl).into(ivCover);
 
+            // 每次绑定时，都恢复初始状态，显示封面和播放按钮
             ivCover.setVisibility(View.VISIBLE);
             ivPlayButton.setVisibility(View.VISIBLE);
         }

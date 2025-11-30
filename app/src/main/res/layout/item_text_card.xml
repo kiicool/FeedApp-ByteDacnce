@@ -1,28 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp">
 
+    <!--
+        【核心修改】
+        1. 移除了顶部的 FrameLayout 占位区域。
+        2. 将固定高度和居中属性应用到这个 LinearLayout 上。
+    -->
     <LinearLayout
-        android:orientation="vertical"
-        android:padding="8dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="160dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:padding="16dp">
 
+        <!-- 标题 -->
         <TextView
             android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="?android:attr/textColorPrimary"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            tools:text="这里是标题" />
 
+        <!-- 描述 -->
         <TextView
             android:id="@+id/tvDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:maxLines="4"
+            android:textColor="?android:attr/textColorSecondary"
             android:textSize="14sp"
-            android:layout_marginTop="4dp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            tools:text="这里是文字卡片的文本内容，会有多行。" />
 
     </LinearLayout>
 

@@ -70,4 +70,5 @@ public class FeedItem {
         this.videoUrl = videoUrl;    // 视频URL
         this.imageRes = 0;
     }
+
 }
