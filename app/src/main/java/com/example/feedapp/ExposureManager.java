@@ -7,6 +7,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,14 +37,16 @@ public class ExposureManager {
     }
 
     private final RecyclerView recyclerView;
-    private final GridLayoutManager layoutManager;
+    // 【修改】使用通用的 LayoutManager 类型
+    private final RecyclerView.LayoutManager layoutManager;
     private final FeedAdapter adapter;
     private final ExposureListener listener;
 
     private final Map<String, ItemState> stateMap = new HashMap<>();
 
+    // 【核心修改】构造函数接受通用的 LayoutManager
     public ExposureManager(RecyclerView recyclerView,
-                           GridLayoutManager layoutManager,
+                           RecyclerView.LayoutManager layoutManager,
                            FeedAdapter adapter,
                            ExposureListener listener) {
         this.recyclerView = recyclerView;
@@ -77,11 +80,40 @@ public class ExposureManager {
     }
 
     private void checkExposure() {
-        if (adapter.getItemCount() == 0) return;
+        if (adapter.getItemCount() == 0 || layoutManager == null) return;
 
-        int first = layoutManager.findFirstVisibleItemPosition();
-        int last = layoutManager.findLastVisibleItemPosition();
-        if (first == RecyclerView.NO_POSITION || last == RecyclerView.NO_POSITION) {
+        // 【核心修改】兼容不同 LayoutManager 来获取可见范围
+        int firstVisibleItemPosition = RecyclerView.NO_POSITION;
+        int lastVisibleItemPosition = RecyclerView.NO_POSITION;
+
+        if (layoutManager instanceof GridLayoutManager) {
+            GridLayoutManager glm = (GridLayoutManager) layoutManager;
+            firstVisibleItemPosition = glm.findFirstVisibleItemPosition();
+            lastVisibleItemPosition = glm.findLastVisibleItemPosition();
+        } else if (layoutManager instanceof StaggeredGridLayoutManager) {
+            StaggeredGridLayoutManager sglm = (StaggeredGridLayoutManager) layoutManager;
+            int[] firstVisibleItems = sglm.findFirstVisibleItemPositions(null);
+            int[] lastVisibleItems = sglm.findLastVisibleItemPositions(null);
+
+            if (firstVisibleItems != null && firstVisibleItems.length > 0) {
+                firstVisibleItemPosition = firstVisibleItems[0];
+                for (int pos : firstVisibleItems) {
+                    if (pos < firstVisibleItemPosition) {
+                        firstVisibleItemPosition = pos;
+                    }
+                }
+            }
+            if (lastVisibleItems != null && lastVisibleItems.length > 0) {
+                lastVisibleItemPosition = lastVisibleItems[0];
+                for (int pos : lastVisibleItems) {
+                    if (pos > lastVisibleItemPosition) {
+                        lastVisibleItemPosition = pos;
+                    }
+                }
+            }
+        }
+
+        if (firstVisibleItemPosition == RecyclerView.NO_POSITION || lastVisibleItemPosition == RecyclerView.NO_POSITION) {
             return;
         }
 
@@ -90,10 +122,10 @@ public class ExposureManager {
 
         Rect rect = new Rect();
 
-        for (int pos = first; pos <= last; pos++) {
+        // 后续的曝光计算逻辑，因为使用了通用的 first/last 变量，所以无需修改
+        for (int pos = firstVisibleItemPosition; pos <= lastVisibleItemPosition; pos++) {
             if (pos < 0 || pos >= adapter.getItemCount()) continue;
 
-            // 跳过 footer
             if (adapter.getItemViewType(pos) == FeedAdapter.VIEW_TYPE_FOOTER) {
                 continue;
             }
@@ -119,7 +151,6 @@ public class ExposureManager {
                 stateMap.put(item.id, state);
             }
 
-            // 从不可见 -> 可见
             if (state.lastRatio == 0f && ratio > 0f) {
                 state.visibleStartTime = now;
                 if (!state.hasExposed) {
@@ -130,13 +161,6 @@ public class ExposureManager {
                 }
             }
 
-            // 可见期间，每次更新
-            if (ratio > 0f && state.visibleStartTime > 0L) {
-                long delta = now - Math.max(state.visibleStartTime, 0L);
-                // 为了简单，这里不叠加 delta，每次退出时算一次总时长
-            }
-
-            // 第一次达到完全可见
             if (!state.hasFullVisible && ratio >= 1.0f) {
                 state.hasFullVisible = true;
                 if (listener != null) {
@@ -149,13 +173,11 @@ public class ExposureManager {
             currentlyVisible.add(item.id);
         }
 
-        // 处理那些上次可见，这次不可见的：视为“曝光结束”
         for (Map.Entry<String, ItemState> entry : stateMap.entrySet()) {
             String id = entry.getKey();
             ItemState state = entry.getValue();
 
             if (state.lastRatio > 0f && !currentlyVisible.contains(id)) {
-                // 刚刚从可见 -> 不可见
                 long endTime = now;
                 long visibleTime = 0L;
                 if (state.visibleStartTime > 0L) {
@@ -165,7 +187,6 @@ public class ExposureManager {
                 }
 
                 if (listener != null) {
-                    // 这里没有 item 对象，只能通过 position 再取一遍
                     int pos = state.lastPosition;
                     if (pos >= 0 && pos < adapter.getItemCount()) {
                         FeedItem item = adapter.getItem(pos);

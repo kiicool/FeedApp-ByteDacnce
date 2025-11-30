@@ -1,27 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp">
 
     <LinearLayout
-        android:orientation="vertical"
-        android:padding="8dp"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp">
 
         <ImageView
             android:id="@+id/ivImage"
             android:layout_width="match_parent"
             android:layout_height="160dp"
-            android:scaleType="centerCrop"/>
+            android:scaleType="centerCrop"
+            tools:src="@tools:sample/backgrounds/scenic" />
 
         <TextView
             android:id="@+id/tvTitle"
-            android:textSize="14sp"
-            android:layout_marginTop="4dp"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="这里是标题" />
+
+        <TextView
+            android:id="@+id/tvDesc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:maxLines="3"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="14sp"
+            tools:text="这里是详细的描述内容，可能会有很多文字。" />
 
     </LinearLayout>
 

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?><androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp">
+
+    <!-- 根布局使用 LinearLayout，垂直排列播放器和文字区域 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- 播放器容器，封面图和播放器视图会放在这里 -->
+        <FrameLayout
+            android:id="@+id/playerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:background="#000000">
+
+            <!-- 视频封面图 -->
+            <ImageView
+                android:id="@+id/ivCover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
+            <!-- 播放按钮图标 -->
+            <ImageView
+                android:id="@+id/ivPlayButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/ic_media_play"
+                android:visibility="visible" />
+
+        </FrameLayout>
+
+        <!-- 文字区域 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="视频标题" />
+
+            <TextView
+                android:id="@+id/tvDesc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                tools:text="这里是视频的描述内容..." />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
