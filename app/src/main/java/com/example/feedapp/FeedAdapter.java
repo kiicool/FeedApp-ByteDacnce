@@ -217,10 +217,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
-    // ===============================================================
-    //               ViewHolder Definitions
-    // ===============================================================
-
     interface IBindableVH {
         void bind(FeedItem item);
     }
@@ -246,7 +242,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         ImageView ivImage;
         TextView tvTitle;
         TextView tvDesc;
-        // 【新增】让 ImageVH 也持有对播放按钮的引用
         ImageView ivPlayButton;
 
         public ImageVH(@NonNull View itemView) {
@@ -254,7 +249,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             ivImage = itemView.findViewById(R.id.ivImage);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvDesc = itemView.findViewById(R.id.tvDesc);
-            // 【新增】尝试找到播放按钮，如果找不到会返回 null
             ivPlayButton = itemView.findViewById(R.id.ivPlayButton);
         }
 
@@ -263,7 +257,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             tvTitle.setText(item.title);
             tvDesc.setText(item.description);
 
-            // 【核心修复】如果这个 ViewHolder 上有关联到播放按钮（说明是复用的视频视图），则明确地隐藏它
             if (ivPlayButton != null) {
                 ivPlayButton.setVisibility(View.GONE);
             }

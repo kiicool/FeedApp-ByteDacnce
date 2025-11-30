@@ -25,7 +25,6 @@ public class MainActivity extends AppCompatActivity {
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private FeedAdapter adapter;
-    // 用一个通用的 LayoutManager 引用来保存实际的 GridLayoutManager
     private RecyclerView.LayoutManager layoutManager;
 
     private boolean isLoadingMore = false;
@@ -33,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
     private int currentPage = 0;
     private static final int PAGE_SIZE = 10;
 
-    // 持有 MockDataGenerator 的实例
     private MockDataGenerator mockDataGenerator;
     // 视频播放管理器
     private VideoPlayerManager videoPlayerManager;
@@ -102,11 +100,16 @@ public class MainActivity extends AppCompatActivity {
         // 视频点击播放
         adapter.setOnVideoClickListener((vh, item) -> {
             if (item.videoUrl != null) {
-                videoPlayerManager.play(vh, item.videoUrl);
+                videoPlayerManager.play(
+                        vh,
+                        String.valueOf(item.id), // itemKey
+                        item.videoUrl
+                );
             }
         });
 
-        // 滚动监听：控制 loadMore + 自动播放/停止
+
+        // 滚动监听
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
@@ -155,7 +158,6 @@ public class MainActivity extends AppCompatActivity {
                 new ExposureManager.ExposureListener() {
                     @Override
                     public void onItemExposed(FeedItem item, int position, float visibleRatio) {
-                        // 可选：不做事
                     }
 
                     @Override
@@ -174,7 +176,6 @@ public class MainActivity extends AppCompatActivity {
                                              int position,
                                              float lastVisibleRatio,
                                              long totalVisibleMillis) {
-                        // 可选：不做事
                     }
                 }
         );
@@ -227,12 +228,14 @@ public class MainActivity extends AppCompatActivity {
                 bestVH = (FeedAdapter.VideoVH) holder;
             }
         }
-
         if (bestVH == null) {
-            // 当前屏幕没有视频卡，停播即可
-            if (videoPlayerManager != null) {
-                videoPlayerManager.stop();
-            }
+            videoPlayerManager.stop();
+            return;
+        }
+
+        FeedAdapter.VideoVH playingVH = videoPlayerManager.getCurrentViewHolder();
+        if (playingVH != null && playingVH == bestVH) {
+            // 当前已经在这个卡片上播放，无需重新切 Surface / 重绑 PlayerView
             return;
         }
 
@@ -246,7 +249,12 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        videoPlayerManager.play(bestVH, item.videoUrl);
+        // 正常播放：触发按 itemKey 记忆进度的逻辑
+        videoPlayerManager.play(
+                bestVH,
+                String.valueOf(item.id),
+                item.videoUrl
+        );
     }
 
     private void refreshData() {

@@ -20,9 +20,6 @@ public class ContentEntry {
 
     // --- 构造函数 ---
 
-    /**
-     * 图文内容构造函数 (使用网络图片)
-     */
     public ContentEntry(String title, String description, String imageUrl) {
         this.type = TYPE_IMAGE;
         this.title = title;

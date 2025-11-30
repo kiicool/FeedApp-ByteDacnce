@@ -99,16 +99,12 @@ public class ExposureManager {
         recyclerView.post(() -> checkExposure(true));
     }
 
-    /**
-     * 对外无参入口，默认按“滚动中”处理。
-     */
     private void checkExposure() {
         checkExposure(false);
     }
 
     /**
      * 核心曝光计算：
-     * @param force true 时强制全量结算（含离屏），false 时做节流处理。
      */
     private void checkExposure(boolean force) {
         if (adapter.getItemCount() == 0) return;
@@ -228,7 +224,7 @@ public class ExposureManager {
             state.lastRatio = ratio;
         }
 
-        // 如果不是强制结算，滚动时到此结束，不去处理“离屏项”
+        // 如果不是强制结算，滚动时到此结束
         if (!force) {
             return;
         }
