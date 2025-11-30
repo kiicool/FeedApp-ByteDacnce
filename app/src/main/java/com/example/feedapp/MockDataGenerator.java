@@ -67,7 +67,7 @@ public class MockDataGenerator {
             int randomIndex = (int) (Math.random() * ContentRepository.getTotalCount());
             ContentEntry content = ContentRepository.getEntry(randomIndex);
 
-            // --- 【核心修改】根据获取到的内容类型，创建对应的 FeedItem ---
+            // --- 【最终修正】根据获取到的内容类型，创建对应的 FeedItem ---
             switch (content.type) {
                 case ContentEntry.TYPE_VIDEO:
                     // 调用包含 imageUrl 和 imageRes 的视频构造函数
@@ -75,7 +75,7 @@ public class MockDataGenerator {
                     break;
 
                 case ContentEntry.TYPE_TEXT:
-                    // 调用纯文本的构造函数
+                    // 调用纯文本的构造函数 (它内部会自动设置 cardType)
                     list.add(new FeedItem(id, layout, content.title, content.description));
                     break;
 

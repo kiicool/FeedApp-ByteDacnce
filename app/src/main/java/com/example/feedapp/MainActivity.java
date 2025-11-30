@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -19,6 +20,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
     private ExposureManager exposureManager;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
@@ -65,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         adapter = new FeedAdapter(this);
 
-        // ==== 关键修改：使用 GridLayoutManager + SpanSizeLookup ====
+        // 使用 GridLayoutManager + SpanSizeLookup
         GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
 
         gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
@@ -78,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 FeedItem item = adapter.getItem(position);
-                if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
+                if (item != null && item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
                     // 单列：占满两列（整行）
                     return 2;
                 } else {
@@ -104,8 +106,22 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 滚动监听，处理 loadMore
+        // 滚动监听：控制 loadMore + 自动播放/停止
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
+                super.onScrollStateChanged(rv, newState);
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    // 列表静止，自动播放当前屏幕中最合适的视频
+                    autoPlayCenterVideo();
+                } else {
+                    // 手指拖动 / 惯性滑动时一律停播，保证滚动流畅
+                    if (videoPlayerManager != null) {
+                        videoPlayerManager.stop();
+                    }
+                }
+            }
+
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 super.onScrolled(rv, dx, dy);
@@ -131,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
 
         adapter.setFooterRetryListener(this::loadMore);
 
-        // 曝光统计，继续用通用的 layoutManager 引用
+        // 曝光统计
         exposureManager = new ExposureManager(
                 recyclerView,
                 layoutManager,
@@ -147,16 +163,9 @@ public class MainActivity extends AppCompatActivity {
                         String msg = "FULL    id=" + item.id + " pos=" + position;
                         ExposureLogger.log(msg);
 
-                        // 自动播放视频
-                        RecyclerView.ViewHolder holder =
-                                recyclerView.findViewHolderForAdapterPosition(position);
-                        if (holder instanceof FeedAdapter.VideoVH) {
-                            videoPlayerManager.play(
-                                    (FeedAdapter.VideoVH) holder,
-                                    item.videoUrl
-                            );
-                        } else {
-                            videoPlayerManager.stop();
+                        // 不在这里直接播放视频，只在列表静止时统一处理自动播放
+                        if (recyclerView.getScrollState() == RecyclerView.SCROLL_STATE_IDLE) {
+                            autoPlayCenterVideo();
                         }
                     }
 
@@ -169,6 +178,75 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
+    }
+
+    /**
+     * 选择当前屏幕中“最合适”的视频卡片并自动播放：
+     * - 只在当前可见范围内查找视频；
+     * - 选择离 RecyclerView 垂直中线最近的一个视频卡。
+     */
+    private void autoPlayCenterVideo() {
+        if (layoutManager == null || adapter == null) return;
+
+        int firstVisible = RecyclerView.NO_POSITION;
+        int lastVisible = RecyclerView.NO_POSITION;
+
+        if (layoutManager instanceof GridLayoutManager) {
+            GridLayoutManager glm = (GridLayoutManager) layoutManager;
+            firstVisible = glm.findFirstVisibleItemPosition();
+            lastVisible = glm.findLastVisibleItemPosition();
+        } else {
+            return;
+        }
+
+        if (firstVisible == RecyclerView.NO_POSITION
+                || lastVisible == RecyclerView.NO_POSITION) {
+            return;
+        }
+
+        int rvCenterY = recyclerView.getHeight() / 2;
+
+        FeedAdapter.VideoVH bestVH = null;
+        int bestDistance = Integer.MAX_VALUE;
+
+        for (int pos = firstVisible; pos <= lastVisible; pos++) {
+            RecyclerView.ViewHolder holder =
+                    recyclerView.findViewHolderForAdapterPosition(pos);
+            if (!(holder instanceof FeedAdapter.VideoVH)) {
+                continue;
+            }
+
+            View itemView = holder.itemView;
+            int[] loc = new int[2];
+            itemView.getLocationOnScreen(loc);
+            int itemCenterY = loc[1] + itemView.getHeight() / 2;
+            int distance = Math.abs(itemCenterY - rvCenterY);
+
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestVH = (FeedAdapter.VideoVH) holder;
+            }
+        }
+
+        if (bestVH == null) {
+            // 当前屏幕没有视频卡，停播即可
+            if (videoPlayerManager != null) {
+                videoPlayerManager.stop();
+            }
+            return;
+        }
+
+        int position = bestVH.getBindingAdapterPosition();
+        if (position == RecyclerView.NO_POSITION) {
+            return;
+        }
+
+        FeedItem item = adapter.getItem(position);
+        if (item == null || item.videoUrl == null) {
+            return;
+        }
+
+        videoPlayerManager.play(bestVH, item.videoUrl);
     }
 
     private void refreshData() {

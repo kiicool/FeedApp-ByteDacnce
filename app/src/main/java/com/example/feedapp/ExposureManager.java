@@ -113,16 +113,14 @@ public class ExposureManager {
     private void checkExposure(boolean force) {
         if (adapter.getItemCount() == 0) return;
 
-        // 防止 LayoutManager 被更换
         RecyclerView.LayoutManager lm = recyclerView.getLayoutManager();
         if (lm == null) return;
         layoutManager = lm;
 
         long now = SystemClock.uptimeMillis();
 
-        // 滚动过程中做时间节流，避免每一帧都计算
         if (!force) {
-            if (now - lastCheckTime < 80) { // 约 12fps，已经足够平滑
+            if (now - lastCheckTime < 120) {
                 return;
             }
         }
