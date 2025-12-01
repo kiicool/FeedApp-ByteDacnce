@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -11,6 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import com.bumptech.glide.Glide;
 
@@ -21,10 +23,10 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public static final int VIEW_TYPE_FOOTER = 100;
 
     // footer 状态
-    public static final int FOOTER_STATE_HIDDEN = -1; // 不显示 footer
-    public static final int FOOTER_STATE_LOADING = 0;  // 加载中
-    public static final int FOOTER_STATE_ERROR = 1;  // 加载失败，可重试
-    public static final int FOOTER_STATE_NO_MORE = 2;  // 没有更多
+    public static final int FOOTER_STATE_HIDDEN = -1;
+    public static final int FOOTER_STATE_LOADING = 0;
+    public static final int FOOTER_STATE_ERROR = 1;
+    public static final int FOOTER_STATE_NO_MORE = 2;
 
     private final Context context;
     private final List<FeedItem> items = new ArrayList<>();
@@ -40,6 +42,17 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void setFooterRetryListener(OnFooterRetryListener listener) {
         this.footerRetryListener = listener;
     }
+
+    // 为 VideoVH 添加点击事件回调接口
+    public interface OnVideoClickListener {
+        void onVideoClick(VideoVH vh, FeedItem item);
+    }
+    private OnVideoClickListener videoClickListener;
+
+    public void setOnVideoClickListener(OnVideoClickListener listener) {
+        this.videoClickListener = listener;
+    }
+
 
     public FeedAdapter(Context context) {
         this.context = context;
@@ -63,123 +76,99 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public int getItemViewType(int position) {
-        // 最后一项且 footer 需要显示 → footer
         if (footerState != FOOTER_STATE_HIDDEN && position == items.size()) {
             return VIEW_TYPE_FOOTER;
         }
-        // 其他都是普通卡片
+        if (position < 0 || position >= items.size()) {
+            return super.getItemViewType(position);
+        }
         return items.get(position).cardType;
     }
 
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(
-            @NonNull ViewGroup parent,
-            int viewType
-    ) {
-        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == FeedItem.CARD_TYPE_TEXT) {
-            View view = inflater.inflate(R.layout.item_text_card, parent, false);
-            TextVH holder = new TextVH(view); // 先创建 holder
-            bindLongClickDelete(holder);     // 再绑定监听器
-            return holder;
-        } else if (viewType == FeedItem.CARD_TYPE_IMAGE) {
-            View view = inflater.inflate(R.layout.item_image_card, parent, false);
-            ImageVH holder = new ImageVH(view); // 先创建 holder
-            bindLongClickDelete(holder);      // 再绑定监听器
-            return holder;
-        } else { // footer
-            View view = inflater.inflate(R.layout.item_load_more_footer, parent, false);
-            return new FooterVH(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        switch (viewType) {
+            case FeedItem.CARD_TYPE_TEXT:
+                return createTextVH(parent);
+            case FeedItem.CARD_TYPE_IMAGE:
+                return createImageVH(parent);
+            case FeedItem.CARD_TYPE_VIDEO:
+                return createVideoVH(parent);
+            case VIEW_TYPE_FOOTER:
+            default:
+                return createFooterVH(parent);
         }
     }
 
     @Override
-    public void onBindViewHolder(
-            @NonNull RecyclerView.ViewHolder holder,
-            int position
-    ) {
-        if (holder instanceof FooterVH) {
-            bindFooter((FooterVH) holder);
-            return;
-        }
-
-        FeedItem item = items.get(position);
-
-        if (holder instanceof TextVH) {
-            TextVH h = (TextVH) holder;
-            h.tvTitle.setText(item.title);
-            h.tvDesc.setText(item.description);
-
-        } else if (holder instanceof ImageVH) {
-            ImageVH h = (ImageVH) holder;
-            h.tvTitle.setText(item.title);
-
-            Glide.with(context).clear(h.ivImage);
-
-            // 大致估算一下目标宽度：单列≈屏幕宽，双列≈屏幕宽的一半
-            int screenWidth = h.itemView.getResources().getDisplayMetrics().widthPixels;
-            int targetWidth;
-            if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
-                targetWidth = screenWidth;
-            } else {
-                targetWidth = screenWidth / 2;
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof IBindableVH) {
+            if (position >= 0 && position < items.size()) {
+                ((IBindableVH) holder).bind(items.get(position));
             }
-            // 假设 4:3 比例，算个目标高度（只是给解码一个上界）
-            int targetHeight = (int) (targetWidth * 3f / 4f);
-
-            if (item.imageRes != 0) { // 本地图
-                Glide.with(context)
-                        .load(item.imageRes)
-                        .override(targetWidth, targetHeight)       // 下采样到合适分辨率
-                        .centerCrop()
-                        .placeholder(android.R.drawable.ic_menu_gallery)
-                        .error(android.R.drawable.ic_menu_report_image)
-
-                        .into(h.ivImage);
-
-            } else if (item.imageUrl != null) { // 网络图
-                Glide.with(context)
-                        .load(item.imageUrl)
-                        .override(targetWidth, targetHeight)       // 同样下采样
-                        .centerCrop()
-                        .placeholder(android.R.drawable.ic_menu_gallery)
-                        .error(android.R.drawable.ic_menu_report_image)
-                        .dontAnimate()
-                        .into(h.ivImage);
-
-            } else { // 如果一个图片类型的 Item 没有任何图片信息，也给一个明确的显示
-                h.ivImage.setImageResource(android.R.drawable.ic_menu_report_image);
-            }
+        } else if (holder instanceof FooterVH) {
+            ((FooterVH) holder).bind(footerState, footerRetryListener);
         }
     }
 
-    private void bindFooter(FooterVH h) {
-        h.itemView.setOnClickListener(null);
-        h.progressBar.setVisibility(View.GONE);
-        h.tvStatus.setText("");
+    @Override
+    public void onViewAttachedToWindow(@NonNull RecyclerView.ViewHolder holder) {
+        super.onViewAttachedToWindow(holder);
+        ViewGroup.LayoutParams lp = holder.itemView.getLayoutParams();
+        if (lp instanceof StaggeredGridLayoutManager.LayoutParams) {
+            StaggeredGridLayoutManager.LayoutParams p = (StaggeredGridLayoutManager.LayoutParams) lp;
+            int position = holder.getBindingAdapterPosition();
+            if (position == RecyclerView.NO_POSITION) return;
 
-        switch (footerState) {
-            case FOOTER_STATE_LOADING:
-                h.progressBar.setVisibility(View.VISIBLE);
-                h.tvStatus.setText("正在加载...");
-                break;
-
-            case FOOTER_STATE_ERROR:
-                h.progressBar.setVisibility(View.GONE);
-                h.tvStatus.setText("加载失败，点击重试");
-                h.itemView.setOnClickListener(v -> {
-                    if (footerRetryListener != null) {
-                        footerRetryListener.onRetry();
+            boolean isFullSpan = false;
+            int viewType = getItemViewType(position);
+            if (viewType == VIEW_TYPE_FOOTER) {
+                isFullSpan = true;
+            } else {
+                if (!items.isEmpty() && position < items.size()) {
+                    FeedItem item = items.get(position);
+                    if (item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
+                        isFullSpan = true;
                     }
-                });
-                break;
-
-            case FOOTER_STATE_NO_MORE:
-                h.progressBar.setVisibility(View.GONE);
-                h.tvStatus.setText("已经到底了");
-                break;
+                }
+            }
+            p.setFullSpan(isFullSpan);
         }
+    }
+
+    private TextVH createTextVH(ViewGroup parent) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_text_card, parent, false);
+        TextVH holder = new TextVH(view);
+        bindLongClickDelete(holder);
+        return holder;
+    }
+
+    private ImageVH createImageVH(ViewGroup parent) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_image_card, parent, false);
+        ImageVH holder = new ImageVH(view);
+        bindLongClickDelete(holder);
+        return holder;
+    }
+
+    private VideoVH createVideoVH(ViewGroup parent) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_video_card, parent, false);
+        VideoVH holder = new VideoVH(view);
+        bindLongClickDelete(holder);
+
+        holder.playerContainer.setOnClickListener(v -> {
+            int pos = holder.getBindingAdapterPosition();
+            if (pos != RecyclerView.NO_POSITION && videoClickListener != null) {
+                videoClickListener.onVideoClick(holder, items.get(pos));
+            }
+        });
+
+        return holder;
+    }
+
+    private FooterVH createFooterVH(ViewGroup parent) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_load_more_footer, parent, false);
+        return new FooterVH(view);
     }
 
     private void bindLongClickDelete(@NonNull RecyclerView.ViewHolder holder) {
@@ -188,14 +177,12 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             if (pos == RecyclerView.NO_POSITION || pos >= items.size()) {
                 return true;
             }
-
             new AlertDialog.Builder(context)
                     .setTitle("删除卡片")
                     .setMessage("确定要删除这张卡片吗？")
                     .setPositiveButton("删除", (dialog, which) -> removeItem(pos))
                     .setNegativeButton("取消", null)
                     .show();
-
             return true;
         });
     }
@@ -215,62 +202,142 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return count;
     }
 
-    // 对外提供设置 footer 状态的方法
     public void setFooterState(int newState) {
         if (footerState == newState) return;
-
         int oldState = this.footerState;
         this.footerState = newState;
-
-        // 判断 footer 的可见性是否发生了变化
         boolean wasVisible = (oldState != FOOTER_STATE_HIDDEN);
         boolean isVisible = (newState != FOOTER_STATE_HIDDEN);
-
         if (wasVisible && !isVisible) {
-
             notifyItemRemoved(items.size());
         } else if (!wasVisible && isVisible) {
-
             notifyItemInserted(items.size());
         } else if (wasVisible && isVisible) {
-
             notifyItemChanged(items.size());
         }
     }
 
-    // 文本卡片 ViewHolder
-    static class TextVH extends RecyclerView.ViewHolder {
+    interface IBindableVH {
+        void bind(FeedItem item);
+    }
+
+    public static class TextVH extends RecyclerView.ViewHolder implements IBindableVH {
         TextView tvTitle;
         TextView tvDesc;
 
-        TextVH(@NonNull View itemView) {
+        public TextVH(@NonNull View itemView) {
             super(itemView);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvDesc = itemView.findViewById(R.id.tvDesc);
         }
-    }
 
-    // 图片卡片 ViewHolder
-    static class ImageVH extends RecyclerView.ViewHolder {
-        ImageView ivImage;
-        TextView tvTitle;
-
-        ImageVH(@NonNull View itemView) {
-            super(itemView);
-            ivImage = itemView.findViewById(R.id.ivImage);
-            tvTitle = itemView.findViewById(R.id.tvTitle);
+        @Override
+        public void bind(FeedItem item) {
+            tvTitle.setText(item.title);
+            tvDesc.setText(item.description);
         }
     }
 
-    // footer ViewHolder
-    static class FooterVH extends RecyclerView.ViewHolder {
+    public static class ImageVH extends RecyclerView.ViewHolder implements IBindableVH {
+        ImageView ivImage;
+        TextView tvTitle;
+        TextView tvDesc;
+        ImageView ivPlayButton;
+
+        public ImageVH(@NonNull View itemView) {
+            super(itemView);
+            ivImage = itemView.findViewById(R.id.ivImage);
+            tvTitle = itemView.findViewById(R.id.tvTitle);
+            tvDesc = itemView.findViewById(R.id.tvDesc);
+            ivPlayButton = itemView.findViewById(R.id.ivPlayButton);
+        }
+
+        @Override
+        public void bind(FeedItem item) {
+            tvTitle.setText(item.title);
+            tvDesc.setText(item.description);
+
+            if (ivPlayButton != null) {
+                ivPlayButton.setVisibility(View.GONE);
+            }
+
+            Glide.with(itemView.getContext()).clear(ivImage);
+            if (item.imageRes != 0) {
+                Glide.with(itemView.getContext()).load(item.imageRes).into(ivImage);
+            } else if (item.imageUrl != null) {
+                Glide.with(itemView.getContext()).load(item.imageUrl).into(ivImage);
+            } else {
+                ivImage.setImageResource(android.R.drawable.ic_menu_report_image);
+            }
+        }
+    }
+
+
+    public static class VideoVH extends RecyclerView.ViewHolder implements IBindableVH {
+        FrameLayout playerContainer;
+        ImageView ivCover;
+        ImageView ivPlayButton;
+        TextView tvTitle;
+        TextView tvDesc;
+
+        public VideoVH(@NonNull View itemView) {
+            super(itemView);
+            playerContainer = itemView.findViewById(R.id.playerContainer);
+            ivCover = itemView.findViewById(R.id.ivCover);
+            ivPlayButton = itemView.findViewById(R.id.ivPlayButton);
+            tvTitle = itemView.findViewById(R.id.tvTitle);
+            tvDesc = itemView.findViewById(R.id.tvDesc);
+        }
+
+        @Override
+        public void bind(FeedItem item) {
+            tvTitle.setText(item.title);
+            tvDesc.setText(item.description);
+
+            Object coverSource = item.imageUrl != null ? item.imageUrl : item.imageRes;
+            Glide.with(itemView.getContext()).load(coverSource).into(ivCover);
+
+            // 每次绑定时，都恢复初始状态，显示封面和播放按钮
+            ivCover.setVisibility(View.VISIBLE);
+            ivPlayButton.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public static class FooterVH extends RecyclerView.ViewHolder {
         ProgressBar progressBar;
         TextView tvStatus;
 
-        FooterVH(@NonNull View itemView) {
+        public FooterVH(@NonNull View itemView) {
             super(itemView);
             progressBar = itemView.findViewById(R.id.progressBar);
             tvStatus = itemView.findViewById(R.id.tvStatus);
+        }
+
+        public void bind(int footerState, OnFooterRetryListener retryListener) {
+            itemView.setOnClickListener(null);
+            switch (footerState) {
+                case FOOTER_STATE_LOADING:
+                    progressBar.setVisibility(View.VISIBLE);
+                    tvStatus.setText("正在加载...");
+                    break;
+                case FOOTER_STATE_ERROR:
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("加载失败，点击重试");
+                    itemView.setOnClickListener(v -> {
+                        if (retryListener != null) {
+                            retryListener.onRetry();
+                        }
+                    });
+                    break;
+                case FOOTER_STATE_NO_MORE:
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("已经到底了");
+                    break;
+                default:
+                    progressBar.setVisibility(View.GONE);
+                    tvStatus.setText("");
+                    break;
+            }
         }
     }
 }

@@ -11,13 +11,33 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <ImageView
-            android:id="@+id/ivImage"
+        <!-- 顶部：视频区域，高度统一 160dp，和图片卡的图片高度一致 -->
+        <FrameLayout
+            android:id="@+id/playerContainer"
             android:layout_width="match_parent"
             android:layout_height="160dp"
-            android:scaleType="centerCrop"
-            tools:src="@tools:sample/backgrounds/scenic" />
+            android:background="#000000">
 
+            <!-- 封面图：等价于图片卡片的 ivImage -->
+            <ImageView
+                android:id="@+id/ivCover"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
+            <!-- 中间的播放按钮 -->
+            <ImageView
+                android:id="@+id/ivPlayButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/ic_media_play"
+                android:visibility="visible" />
+
+        </FrameLayout>
+
+        <!-- 标题：和图片卡片一样 -->
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
@@ -26,8 +46,9 @@
             android:textColor="?android:attr/textColorPrimary"
             android:textSize="16sp"
             android:textStyle="bold"
-            tools:text="这里是标题" />
+            tools:text="视频标题" />
 
+        <!-- 描述：和图片卡片一样（最多三行） -->
         <TextView
             android:id="@+id/tvDesc"
             android:layout_width="match_parent"
@@ -37,7 +58,7 @@
             android:maxLines="3"
             android:textColor="?android:attr/textColorSecondary"
             android:textSize="14sp"
-            tools:text="这里是详细的描述内容，可能会有很多文字。" />
+            tools:text="这里是视频的描述内容，和图片卡片的文案高度保持一致。" />
 
     </LinearLayout>
 
