@@ -25,14 +25,14 @@ public class FeedItem {
     public final String title;
     public final String description;
 
-    // 图片资源：网络 URL 或本地资源 ID（只会用一个）
+    // 图片资源：网络 URL 或本地资源 ID
     public final String imageUrl;
     public final int imageRes;
 
     // 视频资源
     public final String videoUrl;
 
-    // 通用构造函数 — 插件体系核心依赖
+    // 通用构造函数，插件体系核心依赖
     public FeedItem(String id,
                     int cardType,
                     int layoutType,
@@ -79,7 +79,7 @@ public class FeedItem {
                 null);
     }
 
-    // 【旧构造函数 3】图片卡片（本地图片）
+    // 图片卡片（本地图片）
     public FeedItem(String id, int layoutType, String title, String description, int imageRes) {
         this(id,
                 CARD_TYPE_IMAGE,
@@ -91,7 +91,7 @@ public class FeedItem {
                 null);
     }
 
-    // 【旧构造函数 4】视频卡片 —— 兼容旧代码
+    // 视频卡片
     public FeedItem(String id,
                     int layoutType,
                     String title,

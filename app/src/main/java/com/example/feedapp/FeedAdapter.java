@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 import com.bumptech.glide.Glide;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import android.util.SparseArray;
 public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -27,7 +28,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public static final int FOOTER_STATE_LOADING = 0;
     public static final int FOOTER_STATE_ERROR = 1;
     public static final int FOOTER_STATE_NO_MORE = 2;
-
     private final Context context;
     private final List<FeedItem> items = new ArrayList<>();
 
@@ -36,7 +36,12 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public interface OnFooterRetryListener {
         void onRetry();
     }
-
+    public List<FeedItem> getSubItems(int from, int to) {
+        if (from < 0) from = 0;
+        if (to > items.size()) to = items.size();
+        if (from >= to) return Collections.emptyList();
+        return items.subList(from, to);
+    }
     private OnFooterRetryListener footerRetryListener;
 
     public void setFooterRetryListener(OnFooterRetryListener listener) {
@@ -393,6 +398,7 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
     }
+
     public List<FeedItem> getItemsSnapshot() {
         return new ArrayList<>(items);
     }

@@ -18,6 +18,9 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -66,36 +69,40 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
         adapter = new FeedAdapter(this);
-        //新增自定义卡片类
         adapter.registerCardFactory(new BannerCardFactory());
-        // 使用 GridLayoutManager + SpanSizeLookup
-        GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
 
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
         gridLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
-                int viewType = adapter.getItemViewType(position);
-                // footer 独占一整行
-                if (viewType == FeedAdapter.VIEW_TYPE_FOOTER) {
+
+                int total = adapter.getItemCount();
+                if (position < 0 || position >= total) {
                     return 2;
                 }
 
+                int viewType = adapter.getItemViewType(position);
+                if (viewType == FeedAdapter.VIEW_TYPE_FOOTER) return 2;
+
                 FeedItem item = adapter.getItem(position);
-                if (item != null && item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
-                    // 单列：占满两列
-                    return 2;
-                } else {
-                    // 双列：占一列
-                    return 1;
-                }
+                if (item == null) return 2;
+
+                return item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN ? 2 : 1;
             }
         });
 
-        this.layoutManager = gridLayoutManager;
+
         recyclerView.setLayoutManager(gridLayoutManager);
         recyclerView.setAdapter(adapter);
+        layoutManager = gridLayoutManager;
+
+        // 一些基础性能优化（可选，但推荐）
+        recyclerView.setHasFixedSize(true);
         recyclerView.setItemViewCacheSize(20);
+        recyclerView.setItemAnimator(null);
     }
+
+
 
     private void setupListeners() {
         swipeRefreshLayout.setOnRefreshListener(this::refreshData);
@@ -111,9 +118,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-        // 滚动监听
+        // ✅ 只保留这一份滚动监听（里面有自动播放 + 预加载）
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+
+            private int lastPreloadPosition = -1;
+
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
                 super.onScrollStateChanged(rv, newState);
@@ -131,29 +140,39 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 super.onScrolled(rv, dx, dy);
-                if (dy <= 0 || layoutManager == null) return;
 
-                int totalItemCount = layoutManager.getItemCount();
-                int lastVisibleItemPosition = -1;
+                if (!(layoutManager instanceof GridLayoutManager)) return;
 
-                if (layoutManager instanceof GridLayoutManager) {
-                    lastVisibleItemPosition =
-                            ((GridLayoutManager) layoutManager).findLastVisibleItemPosition();
+                GridLayoutManager glm = (GridLayoutManager) layoutManager;
+                int lastVisible = glm.findLastVisibleItemPosition();
+                int total = adapter.getItemCount();
+
+                // ① 距离底部还有 6 个 item 时预加载「即将出现」的图片
+                if (lastVisible >= 0 && total - lastVisible <= 6) {
+                    int startPreloadPos = Math.max(lastVisible + 1, lastPreloadPosition + 1);
+                    if (startPreloadPos < total) {
+                        int end = Math.min(total, startPreloadPos + 6);
+                        List<FeedItem> sub = adapter.getSubItems(startPreloadPos, end);
+                        preloadImages(sub, sub.size());
+                        lastPreloadPosition = end - 1;
+                    }
                 }
 
-                final int THRESHOLD = 3;
-                if (lastVisibleItemPosition != -1
+                if (lastVisible >= 0
+                        && total > 0
+                        && total - lastVisible <= 3    // 距离底部 3 个以内就触发
                         && !isLoadingMore
-                        && hasMore
-                        && lastVisibleItemPosition >= totalItemCount - 1 - THRESHOLD) {
-                    rv.post(MainActivity.this::loadMore);
+                        && hasMore) {
+
+                    loadMore();
                 }
             }
+
         });
 
         adapter.setFooterRetryListener(this::loadMore);
 
-        // 曝光统计
+        // 曝光统计保持不变
         exposureManager = new ExposureManager(
                 recyclerView,
                 layoutManager,
@@ -183,6 +202,7 @@ public class MainActivity extends AppCompatActivity {
                 }
         );
     }
+
 
     /**
      * 选择当前屏幕中“最合适”的视频卡片并自动播放：
@@ -238,7 +258,6 @@ public class MainActivity extends AppCompatActivity {
 
         FeedAdapter.VideoVH playingVH = videoPlayerManager.getCurrentViewHolder();
         if (playingVH != null && playingVH == bestVH) {
-            // 当前已经在这个卡片上播放，无需重新切 Surface / 重绑 PlayerView
             return;
         }
 
@@ -326,7 +345,8 @@ public class MainActivity extends AppCompatActivity {
             int start = currentPage * PAGE_SIZE;
             List<FeedItem> page = mockDataGenerator.generatePageData(start, PAGE_SIZE);
             isLoadingMore = false;
-
+            //预加载图片
+            preloadImages(page, 8);
             if (isRefresh) {
                 adapter.setItems(page);
                 swipeRefreshLayout.setRefreshing(false);
@@ -347,6 +367,22 @@ public class MainActivity extends AppCompatActivity {
             }
         }, 800);
     }
+    private void preloadImages(List<FeedItem> items, int maxCount) {
+        for (int i = 0; i < items.size() && i < maxCount; i++) {
+            FeedItem fi = items.get(i);
+            Object src = fi.imageUrl != null ? fi.imageUrl : fi.imageRes;
+            // 没图就跳过
+            if (src == null || (src instanceof Integer && ((Integer) src) == 0)) {
+                continue;
+            }
+
+            Glide.with(this)
+                    .load(src)
+                    .override(400, 300)   // 随便给个大小，别太大
+                    .preload();
+        }
+    }
+
 
 
 

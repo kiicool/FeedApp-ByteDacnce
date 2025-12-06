@@ -27,9 +27,11 @@ public class MockDataGenerator {
 
     private int getRandomAdInterval() {
         // 每 8~15 张内容插一条广告
-        return 8 + (int) (Math.random() * 8);
+        return 8 + (int) (Math.random() * 8); // [8, 15]
     }
-     // 在下拉刷新时调用，以便从头开始生成布局和视频节奏。
+    /**
+     * 在下拉刷新时调用，以便从头开始生成布局和视频节奏。
+     */
     public void reset() {
         this.isSingleColumnMode = true;
         this.doubleColumnCount = 0;
@@ -56,7 +58,7 @@ public class MockDataGenerator {
 
         for (int i = start; i < start + pageSize; i++) {
 
-            // === 1. 先决定当前卡片是单列还是双列 ===
+            //先决定当前卡片是单列还是双列
             int layout;
             if (this.isSingleColumnMode) {
                 layout = FeedItem.LAYOUT_SINGLE_COLUMN;
@@ -83,7 +85,7 @@ public class MockDataGenerator {
 
             String id = "id_" + i;
 
-            // === 2. 只在“应该是单列”的位置考虑插广告，避免破坏双列行 ===
+            // 只在“应该是单列”的位置考虑插广告
             boolean shouldInsertAd =
                     (layout == FeedItem.LAYOUT_SINGLE_COLUMN)   // 当前行是单列
                             && (cardsSinceLastAd >= nextAdInterval); // 达到广告间隔
@@ -105,10 +107,11 @@ public class MockDataGenerator {
                 cardsSinceLastAd = 0;
                 nextAdInterval = getRandomAdInterval();
 
+                // 这一轮已经填了一个完整单列行，就不再生成普通内容了
                 continue;
             }
 
-            // === 3. 正常内容逻辑，从这儿往下保持和你现在版本一样 ===
+            //正常内容推送逻辑
 
             // 是否属于“第一页的前 5 张卡片”
             boolean inFirstFive = (start == 0 && i < 5);
