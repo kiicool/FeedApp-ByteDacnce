@@ -1,7 +1,10 @@
 package com.example.feedapp;
 
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 负责为从 ContentRepository 获取的内容应用布局和类型控制。
@@ -19,7 +22,13 @@ public class MockDataGenerator {
     // 距离上一次成功生成视频卡片已经过去了多少个卡片
     private int cardsSinceLastVideo = 0;
     private int nextVideoInterval = getRandomVideoInterval();
+    private int cardsSinceLastAd = 0;
+    private int nextAdInterval = 10;  // 初始值，后面会随机
 
+    private int getRandomAdInterval() {
+        // 比较保守：每 8~15 张内容插一条广告
+        return 8 + (int) (Math.random() * 8); // [8, 15]
+    }
     /**
      * 在下拉刷新时调用，以便从头开始生成布局和视频节奏。
      */
@@ -30,11 +39,13 @@ public class MockDataGenerator {
         this.nextVideoInterval = getRandomVideoInterval();
     }
 
-    /**
-     * 生成一页的模拟数据。
-     */
     public List<FeedItem> generatePageData(int start, int pageSize) {
         List<FeedItem> list = new ArrayList<>();
+
+        // 当前这一页里已经用过哪些内容，避免同一页出现相同图片/文案
+        Set<Integer> usedIndicesInPage = new HashSet<>();
+
+
 
         // 行布局权重：2/3/4/5 行
         int[] rowWeights = {5, 4, 3, 2};
@@ -47,7 +58,7 @@ public class MockDataGenerator {
 
         for (int i = start; i < start + pageSize; i++) {
 
-            // 决定当前卡片使用单列还是双列布局
+            // === 1. 先决定当前卡片是单列还是双列 ===
             int layout;
             if (this.isSingleColumnMode) {
                 layout = FeedItem.LAYOUT_SINGLE_COLUMN;
@@ -74,61 +85,82 @@ public class MockDataGenerator {
 
             String id = "id_" + i;
 
-            // 从 ContentRepository 随机取一条内容
-            int randomIndex = (int) (Math.random() * totalCount);
-            ContentEntry content = ContentRepository.getEntry(randomIndex);
+            // === 2. 只在“应该是单列”的位置考虑插广告，避免破坏双列行 ===
+            boolean shouldInsertAd =
+                    (layout == FeedItem.LAYOUT_SINGLE_COLUMN)   // 当前行本来就是单列
+                            && (cardsSinceLastAd >= nextAdInterval); // 达到广告间隔
 
-            boolean inFirstFive = (i < 5);
+            if (shouldInsertAd) {
+                String adId = "banner_" + start + "_" + i;
+                list.add(new FeedItem(
+                        adId,
+                        FeedItem.CARD_TYPE_BANNER,
+                        FeedItem.LAYOUT_SINGLE_COLUMN,
+                        "猜你喜欢 · 精选推荐",
+                        "基于你的浏览习惯推荐一些内容",
+                        "https://picsum.photos/seed/" + adId + "/800/400",
+                        0,
+                        null
+                ));
 
-            // 前 5 个卡片：如果抽到视频，就重抽，直到抽到非视频
-            if (inFirstFive) {
-                int safety = totalCount; // 最多尝试 totalCount 次，防止极端死循环
-                while (content.type == ContentEntry.TYPE_VIDEO && safety > 0) {
-                    randomIndex = (int) (Math.random() * totalCount);
-                    content = ContentRepository.getEntry(randomIndex);
-                    safety--;
-                }
+                // 重置广告节奏
+                cardsSinceLastAd = 0;
+                nextAdInterval = getRandomAdInterval();
+
+                // 这一轮已经填了一个完整单列行，就不再生成普通内容了
+                continue;
             }
 
-            // 控制视频节奏：至少隔 N 张卡才允许再次出视频
-            boolean canShowVideoByInterval = cardsSinceLastVideo >= nextVideoInterval;
-            boolean canShowVideoNow = !inFirstFive && canShowVideoByInterval;
+            // === 3. 正常内容逻辑，从这儿往下保持和你现在版本一样 ===
+
+            // 是否属于“第一页的前 5 张卡片”
+            boolean inFirstFive = (start == 0 && i < 5);
+
+            boolean canShowVideoByInterval = (cardsSinceLastVideo >= nextVideoInterval);
+            boolean allowVideoNow = !inFirstFive && canShowVideoByInterval;
+
+            int randomIndex = -1;
+            ContentEntry content = null;
+
+            int safety = totalCount * 2;
+            while (safety-- > 0) {
+                int candidateIndex = (int) (Math.random() * totalCount);
+
+                if (usedIndicesInPage.contains(candidateIndex)) {
+                    continue;
+                }
+
+                ContentEntry candidate = ContentRepository.getEntry(candidateIndex);
+
+                // 不允许视频时，跳过 TYPE_VIDEO
+                if (!allowVideoNow && candidate.type == ContentEntry.TYPE_VIDEO) {
+                    continue;
+                }
+
+                randomIndex = candidateIndex;
+                content = candidate;
+                usedIndicesInPage.add(candidateIndex);
+                break;
+            }
+
+            if (content == null) {
+                randomIndex = (int) (Math.random() * totalCount);
+                content = ContentRepository.getEntry(randomIndex);
+            }
 
             switch (content.type) {
                 case ContentEntry.TYPE_VIDEO:
-                    if (canShowVideoNow) {
-                        list.add(new FeedItem(
-                                id,
-                                layout,
-                                content.title,
-                                content.description,
-                                content.imageUrl,
-                                content.imageRes,
-                                content.videoUrl
-                        ));
-                        cardsSinceLastVideo = 0;
-                        nextVideoInterval = getRandomVideoInterval();
-                    } else {
-                        // 节奏不允许视频：这里降级为图文卡处理
-                        if (content.imageUrl != null) {
-                            list.add(new FeedItem(
-                                    id,
-                                    layout,
-                                    content.title,
-                                    content.description,
-                                    content.imageUrl
-                            ));
-                        } else {
-                            list.add(new FeedItem(
-                                    id,
-                                    layout,
-                                    content.title,
-                                    content.description,
-                                    content.imageRes
-                            ));
-                        }
-                        cardsSinceLastVideo++;
-                    }
+                    list.add(new FeedItem(
+                            id,
+                            layout,
+                            content.title,
+                            content.description,
+                            content.imageUrl,
+                            content.imageRes,
+                            content.videoUrl
+                    ));
+                    cardsSinceLastVideo = 0;
+                    nextVideoInterval = getRandomVideoInterval();
                     break;
 
                 case ContentEntry.TYPE_TEXT:
@@ -163,10 +195,16 @@ public class MockDataGenerator {
                     cardsSinceLastVideo++;
                     break;
             }
+
+            // 只有“正常内容”才算是离上次广告又远了一张
+            cardsSinceLastAd++;
         }
+
 
         return list;
     }
+
+
 
     /**
      * 返回一个 [8, 10] 之间的随机整数，用于控制多少张卡片后允许出现下一个视频。

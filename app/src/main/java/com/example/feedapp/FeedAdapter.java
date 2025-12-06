@@ -18,7 +18,7 @@ import com.bumptech.glide.Glide;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import android.util.SparseArray;
 public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public static final int VIEW_TYPE_FOOTER = 100;
 
@@ -52,10 +52,64 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void setOnVideoClickListener(OnVideoClickListener listener) {
         this.videoClickListener = listener;
     }
+    public interface CardFactory {
+        int getCardType();
 
+        @NonNull
+        RecyclerView.ViewHolder onCreateViewHolder(@NonNull LayoutInflater inflater,
+                                                   @NonNull ViewGroup parent);
+    }
+
+    private final SparseArray<CardFactory> cardFactories = new SparseArray<>();
+
+    public void registerCardFactory(@NonNull CardFactory factory) {
+        cardFactories.put(factory.getCardType(), factory);
+    }
 
     public FeedAdapter(Context context) {
         this.context = context;
+        registerCardFactory(new CardFactory() {
+            @Override
+            public int getCardType() {
+                return FeedItem.CARD_TYPE_TEXT;
+            }
+
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull LayoutInflater inflater,
+                                                              @NonNull ViewGroup parent) {
+                // 复用原来的创建方法
+                return createTextVH(parent);
+            }
+        });
+
+        registerCardFactory(new CardFactory() {
+            @Override
+            public int getCardType() {
+                return FeedItem.CARD_TYPE_IMAGE;
+            }
+
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull LayoutInflater inflater,
+                                                              @NonNull ViewGroup parent) {
+                return createImageVH(parent);
+            }
+        });
+
+        registerCardFactory(new CardFactory() {
+            @Override
+            public int getCardType() {
+                return FeedItem.CARD_TYPE_VIDEO;
+            }
+
+            @NonNull
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull LayoutInflater inflater,
+                                                              @NonNull ViewGroup parent) {
+                return createVideoVH(parent);
+            }
+        });
     }
 
     public void setItems(List<FeedItem> newItems) {
@@ -88,17 +142,16 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        switch (viewType) {
-            case FeedItem.CARD_TYPE_TEXT:
-                return createTextVH(parent);
-            case FeedItem.CARD_TYPE_IMAGE:
-                return createImageVH(parent);
-            case FeedItem.CARD_TYPE_VIDEO:
-                return createVideoVH(parent);
-            case VIEW_TYPE_FOOTER:
-            default:
-                return createFooterVH(parent);
+        if (viewType == VIEW_TYPE_FOOTER) {
+            return createFooterVH(parent);
         }
+
+        CardFactory factory = cardFactories.get(viewType);
+        if (factory != null) {
+            return factory.onCreateViewHolder(LayoutInflater.from(context), parent);
+        }
+
+        throw new IllegalArgumentException("Unknown viewType = " + viewType);
     }
 
     @Override

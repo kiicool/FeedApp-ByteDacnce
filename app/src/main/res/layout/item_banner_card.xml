@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="200dp"
+    android:layout_margin="12dp"
+    app:cardUseCompatPadding="true"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- 背景图 -->
+        <ImageView
+            android:id="@+id/ivBanner"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
+
+        <!-- 底部渐变背景 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="@drawable/banner_gradient_bottom">
+
+            <TextView
+                android:id="@+id/tvBannerTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:text="冬日风光 · 自然写真展" />
+
+            <TextView
+                android:id="@+id/tvBannerDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#DDFFFFFF"
+                android:textSize="14sp"
+                android:text="沉浸式视觉摄影活动今日开幕" />
+
+        </LinearLayout>
+
+        <!-- 右下角 Banner 标签 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="8dp"
+            android:background="#80000000"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:text="BANNER"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"/>
+    </FrameLayout>
+
+</androidx.cardview.widget.CardView>

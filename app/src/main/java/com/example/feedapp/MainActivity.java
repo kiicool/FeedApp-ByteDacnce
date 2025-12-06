@@ -66,7 +66,8 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
         adapter = new FeedAdapter(this);
-
+        //新增自定义卡片类
+        adapter.registerCardFactory(new BannerCardFactory());
         // 使用 GridLayoutManager + SpanSizeLookup
         GridLayoutManager gridLayoutManager = new GridLayoutManager(this, 2);
 
