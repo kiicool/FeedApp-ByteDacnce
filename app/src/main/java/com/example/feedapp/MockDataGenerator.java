@@ -23,15 +23,13 @@ public class MockDataGenerator {
     private int cardsSinceLastVideo = 0;
     private int nextVideoInterval = getRandomVideoInterval();
     private int cardsSinceLastAd = 0;
-    private int nextAdInterval = 10;  // 初始值，后面会随机
+    private int nextAdInterval = 10;
 
     private int getRandomAdInterval() {
-        // 比较保守：每 8~15 张内容插一条广告
-        return 8 + (int) (Math.random() * 8); // [8, 15]
+        // 每 8~15 张内容插一条广告
+        return 8 + (int) (Math.random() * 8);
     }
-    /**
-     * 在下拉刷新时调用，以便从头开始生成布局和视频节奏。
-     */
+     // 在下拉刷新时调用，以便从头开始生成布局和视频节奏。
     public void reset() {
         this.isSingleColumnMode = true;
         this.doubleColumnCount = 0;
@@ -87,7 +85,7 @@ public class MockDataGenerator {
 
             // === 2. 只在“应该是单列”的位置考虑插广告，避免破坏双列行 ===
             boolean shouldInsertAd =
-                    (layout == FeedItem.LAYOUT_SINGLE_COLUMN)   // 当前行本来就是单列
+                    (layout == FeedItem.LAYOUT_SINGLE_COLUMN)   // 当前行是单列
                             && (cardsSinceLastAd >= nextAdInterval); // 达到广告间隔
 
             if (shouldInsertAd) {
@@ -107,7 +105,6 @@ public class MockDataGenerator {
                 cardsSinceLastAd = 0;
                 nextAdInterval = getRandomAdInterval();
 
-                // 这一轮已经填了一个完整单列行，就不再生成普通内容了
                 continue;
             }
 
@@ -196,7 +193,6 @@ public class MockDataGenerator {
                     break;
             }
 
-            // 只有“正常内容”才算是离上次广告又远了一张
             cardsSinceLastAd++;
         }
 

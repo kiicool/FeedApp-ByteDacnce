@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
 
                 FeedItem item = adapter.getItem(position);
                 if (item != null && item.layoutType == FeedItem.LAYOUT_SINGLE_COLUMN) {
-                    // 单列：占满两列（整行）
+                    // 单列：占满两列
                     return 2;
                 } else {
                     // 双列：占一列
@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
                     // 列表静止，自动播放当前屏幕中最合适的视频
                     autoPlayCenterVideo();
                 } else {
-                    // 手指拖动 / 惯性滑动时一律停播，保证滚动流畅
+                    // 手指拖动/惯性滑动时一律停播，保证滚动流畅
                     if (videoPlayerManager != null) {
                         videoPlayerManager.stop();
                     }
@@ -290,11 +290,11 @@ public class MainActivity extends AppCompatActivity {
                     + simulateError + ", isRefresh=" + isRefresh);
 
             if (simulateError) {
-                // ======= 网络失败分支：这里要走本地缓存 =======
+                // 网络失败分支：走本地缓存
                 isLoadingMore = false;
 
                 if (isRefresh) {
-                    // 下拉刷新失败 → 尝试从本地缓存恢复
+                    // 下拉刷新失败，则尝试从本地缓存恢复
                     List<FeedItem> cached = LocalFeedCache.load(this);
                     if (cached != null && !cached.isEmpty()) {
                         Log.d("MainActivity", "use local cache, size=" + cached.size());
@@ -322,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // ======= 正常成功分支（模拟“网络成功”） =======
+            // 网络请求成功分支
             int start = currentPage * PAGE_SIZE;
             List<FeedItem> page = mockDataGenerator.generatePageData(start, PAGE_SIZE);
             isLoadingMore = false;

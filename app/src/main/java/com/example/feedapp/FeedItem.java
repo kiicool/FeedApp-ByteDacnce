@@ -10,9 +10,9 @@ public class FeedItem {
     public static final int CARD_TYPE_TEXT = 1;
     public static final int CARD_TYPE_IMAGE = 2;
     public static final int CARD_TYPE_VIDEO = 3;
-    public static final int CARD_TYPE_BANNER = 4;
     // 如需扩展 Banner 等类型，外部可自行定义：
-    // public static final int CARD_TYPE_BANNER = 4;
+    public static final int CARD_TYPE_BANNER = 4;
+
 
     // --- 布局类型常量 ---
     public static final int LAYOUT_SINGLE_COLUMN = 1; // 占满一行
@@ -32,10 +32,7 @@ public class FeedItem {
     // 视频资源
     public final String videoUrl;
 
-    // --------------------------------------------------------------------
-    // 【通用构造函数 — 插件体系核心依赖】
-    // 所有构造函数最终都调用它，确保 cardType、layoutType 可完全自定义。
-    // --------------------------------------------------------------------
+    // 通用构造函数 — 插件体系核心依赖
     public FeedItem(String id,
                     int cardType,
                     int layoutType,
@@ -55,9 +52,8 @@ public class FeedItem {
         this.videoUrl = videoUrl;
     }
 
-    // --------------------------------------------------------------------
-    // 【旧构造函数 1】文本卡片 —— 兼容旧代码
-    // --------------------------------------------------------------------
+    // 文本卡片
+
     public FeedItem(String id, int layoutType, String title, String description) {
         this(id,
                 CARD_TYPE_TEXT,
@@ -70,9 +66,8 @@ public class FeedItem {
         );
     }
 
-    // --------------------------------------------------------------------
-    // 【旧构造函数 2】图片卡片（网络图片）—— 兼容旧代码
-    // --------------------------------------------------------------------
+    // 图片卡片（网络图片）
+
     public FeedItem(String id, int layoutType, String title, String description, String imageUrl) {
         this(id,
                 CARD_TYPE_IMAGE,
@@ -84,9 +79,7 @@ public class FeedItem {
                 null);
     }
 
-    // --------------------------------------------------------------------
-    // 【旧构造函数 3】图片卡片（本地图片）—— 兼容旧代码
-    // --------------------------------------------------------------------
+    // 【旧构造函数 3】图片卡片（本地图片）
     public FeedItem(String id, int layoutType, String title, String description, int imageRes) {
         this(id,
                 CARD_TYPE_IMAGE,
@@ -98,9 +91,7 @@ public class FeedItem {
                 null);
     }
 
-    // --------------------------------------------------------------------
     // 【旧构造函数 4】视频卡片 —— 兼容旧代码
-    // --------------------------------------------------------------------
     public FeedItem(String id,
                     int layoutType,
                     String title,

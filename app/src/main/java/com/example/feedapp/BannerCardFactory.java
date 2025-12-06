@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 
 /**
- * 示例：通过“新增一个类 + 注册”，扩展一类新卡片样式（Banner 卡）
+    扩展一类新卡片样式（Banner 卡）
  */
 public class BannerCardFactory implements FeedAdapter.CardFactory {
 

@@ -393,7 +393,6 @@ public class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
     }
-    /** 给本地缓存用，返回当前列表的一份浅拷贝 */
     public List<FeedItem> getItemsSnapshot() {
         return new ArrayList<>(items);
     }

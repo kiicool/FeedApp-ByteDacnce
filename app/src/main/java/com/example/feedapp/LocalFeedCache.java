@@ -12,8 +12,6 @@ import java.util.List;
 /**
  * 本地缓存：把当前 Feed 列表序列化到 SharedPreferences，
  * 当“网络请求”失败时，从这里读出来展示。
- *
- * 为了避免引入 Gson，这里用最傻但稳定的：一行一个 item，字段用 '|' 分隔。
  */
 public class LocalFeedCache {
 
@@ -26,7 +24,6 @@ public class LocalFeedCache {
 
     private static String escape(String s) {
         if (s == null) return "";
-        // 简单转义，避免字段里本身带有 '|' 和 换行符
         return s.replace("|", "\\|").replace("\n", "\\n");
     }
 
@@ -43,7 +40,7 @@ public class LocalFeedCache {
         }
     }
 
-    /** 保存当前列表到本地 */
+    // 保存当前列表到本地
     public static void save(Context context, List<FeedItem> items) {
         if (items == null || items.isEmpty()) {
             Log.d("LocalFeedCache", "save: empty list, skip");
@@ -65,7 +62,7 @@ public class LocalFeedCache {
         prefs(context).edit().putString(KEY_FEED_ITEMS, sb.toString()).apply();
     }
 
-    /** 从本地读取缓存，如果没有就返回 null */
+    // 从本地读取缓存，如果没有就返回 null
     @Nullable
     public static List<FeedItem> load(Context context) {
         String data = prefs(context).getString(KEY_FEED_ITEMS, null);
