@@ -15,12 +15,11 @@ Feed 类客户端解决方案文档参见：https://mcnio21fckrv.feishu.cn/wiki/
 
 1. 使用 Android Studio 打开本项目目录。
 2. 等待 Gradle 同步完成。
-3. 直接运行 `app` 模块到真机 / 模拟器即可。  
-   （也可以在 `Build > Build Bundle(s) / APK(s) > Build APK(s)` 生成 APK 安装。）
+3. 直接运行到真机/模拟器。APK包位于app\src\main\java\com\example\feedapp\FeedApp.apk
 
 ---
 
-## 2. 目录结构（简要）
+## 2. 目录结构
 
 - `app/src/main/java/com/example/feedapp/`
   - `MainActivity.java`
