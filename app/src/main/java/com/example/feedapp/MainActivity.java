@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -35,7 +36,8 @@ public class MainActivity extends AppCompatActivity {
     private MockDataGenerator mockDataGenerator;
     // 视频播放管理器
     private VideoPlayerManager videoPlayerManager;
-
+    //测试缓存功能开关。使用方法：先设置为False，启用网络加载;设置为true再次运行，使用的是上一次加载的缓存。
+    private boolean debugForceError = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -276,22 +278,52 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestPage(boolean isRefresh) {
+        // 这里可以看到每次请求到底是不是在模拟错误
+        Log.d("MainActivity", "requestPage() called, isRefresh=" + isRefresh
+                + ", debugForceError=" + debugForceError);
+
         handler.postDelayed(() -> {
-            boolean simulateError = false;
+
+            boolean simulateError = debugForceError;  // 统一用这个开关
+            Log.d("MainActivity", "requestPage() inner, simulateError="
+                    + simulateError + ", isRefresh=" + isRefresh);
+
             if (simulateError) {
+                // ======= 网络失败分支：这里要走本地缓存 =======
                 isLoadingMore = false;
+
                 if (isRefresh) {
+                    // 下拉刷新失败 → 尝试从本地缓存恢复
+                    List<FeedItem> cached = LocalFeedCache.load(this);
+                    if (cached != null && !cached.isEmpty()) {
+                        Log.d("MainActivity", "use local cache, size=" + cached.size());
+                        adapter.setItems(cached);
+                        hasMore = false;
+                        adapter.setFooterState(FeedAdapter.FOOTER_STATE_NO_MORE);
+                        Toast.makeText(this,
+                                "网络失败，已使用本地缓存",
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        Log.d("MainActivity", "no local cache available");
+                        Toast.makeText(this,
+                                "刷新失败，且暂无本地缓存",
+                                Toast.LENGTH_SHORT).show();
+                    }
                     swipeRefreshLayout.setRefreshing(false);
-                    Toast.makeText(this, "刷新失败", Toast.LENGTH_SHORT).show();
+
                 } else {
+                    // 加载更多失败，只提示错误，不读缓存
                     adapter.setFooterState(FeedAdapter.FOOTER_STATE_ERROR);
+                    Toast.makeText(this,
+                            "加载更多失败，可以下拉刷新或稍后重试",
+                            Toast.LENGTH_SHORT).show();
                 }
                 return;
             }
 
+            // ======= 正常成功分支（模拟“网络成功”） =======
             int start = currentPage * PAGE_SIZE;
-            List<FeedItem> page =
-                    mockDataGenerator.generatePageData(start, PAGE_SIZE);
+            List<FeedItem> page = mockDataGenerator.generatePageData(start, PAGE_SIZE);
             isLoadingMore = false;
 
             if (isRefresh) {
@@ -302,6 +334,9 @@ public class MainActivity extends AppCompatActivity {
                 adapter.addItems(page);
             }
 
+            // 成功时更新本地缓存
+            LocalFeedCache.save(this, adapter.getItemsSnapshot());
+
             if (page.size() < PAGE_SIZE) {
                 hasMore = false;
                 adapter.setFooterState(FeedAdapter.FOOTER_STATE_NO_MORE);
@@ -311,6 +346,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }, 800);
     }
+
+
 
     @Override
     protected void onPause() {

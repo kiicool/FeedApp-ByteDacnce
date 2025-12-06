@@ -1,8 +1,6 @@
 package com.example.feedapp;
-
 import java.util.ArrayList;
 import java.util.List;
-
 /**
  * 内容仓库：负责提供预设的文本 / 图片 / 视频资源。
  */
@@ -178,10 +176,6 @@ public class ContentRepository {
         ));
     }
 
-    /**
-     * 根据索引获取一条内容。
-     * 使用取模运算防止越界。
-     */
     public static ContentEntry getEntry(int index) {
         if (entries.isEmpty()) {
             return new ContentEntry("列表为空", "请在 ContentRepository 中添加内容。");
@@ -189,9 +183,6 @@ public class ContentRepository {
         return entries.get(index % entries.size());
     }
 
-    /**
-     * 获取预设内容总数。
-     */
     public static int getTotalCount() {
         return entries.size();
     }
