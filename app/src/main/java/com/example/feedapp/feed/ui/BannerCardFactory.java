@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.ui;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +9,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.example.feedapp.R;
+import com.example.feedapp.feed.model.FeedItem;
 
 /**
     扩展一类新卡片样式（Banner 卡）

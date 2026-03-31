@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.model;
 
 /**
  * App 中所有卡片的数据模型。

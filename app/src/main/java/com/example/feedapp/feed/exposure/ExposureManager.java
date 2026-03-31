@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.exposure;
 
 import android.graphics.Rect;
 import android.os.SystemClock;
@@ -9,6 +9,9 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
+
+import com.example.feedapp.feed.model.FeedItem;
+import com.example.feedapp.feed.ui.adapter.FeedAdapter;
 
 import java.util.HashMap;
 import java.util.HashSet;

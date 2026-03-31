@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.model;
 
 /**
  * 内容模型，可以同时支持网络资源和本地资源。

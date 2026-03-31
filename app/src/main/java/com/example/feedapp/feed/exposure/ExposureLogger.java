@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.exposure;
 
 import android.util.Log;
 

@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.ui.main;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -20,6 +20,16 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.example.feedapp.R;
+import com.example.feedapp.feed.data.LocalFeedCache;
+import com.example.feedapp.feed.data.MockDataGenerator;
+import com.example.feedapp.feed.exposure.ExposureLogger;
+import com.example.feedapp.feed.exposure.ExposureManager;
+import com.example.feedapp.feed.model.FeedItem;
+import com.example.feedapp.feed.player.VideoPlayerManager;
+import com.example.feedapp.feed.ui.adapter.FeedAdapter;
+import com.example.feedapp.feed.ui.factory.BannerCardFactory;
+import com.example.feedapp.debug.DebugExposureActivity;
 
 import java.util.List;
 

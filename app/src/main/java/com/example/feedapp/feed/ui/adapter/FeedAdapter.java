@@ -1,4 +1,4 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.ui.adapter;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -15,6 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import com.bumptech.glide.Glide;
+import com.example.feedapp.R;
+import com.example.feedapp.feed.model.FeedItem;
 
 import java.util.ArrayList;
 import java.util.Collections;

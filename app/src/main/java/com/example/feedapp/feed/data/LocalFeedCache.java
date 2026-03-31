@@ -1,10 +1,12 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.data;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
+
+import com.example.feedapp.feed.model.FeedItem;
 
 import java.util.ArrayList;
 import java.util.List;

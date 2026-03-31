@@ -1,4 +1,7 @@
-package com.example.feedapp;
+package com.example.feedapp.feed.data;
+
+import com.example.feedapp.R;
+import com.example.feedapp.feed.model.ContentEntry;
 import java.util.ArrayList;
 import java.util.List;
 /**
